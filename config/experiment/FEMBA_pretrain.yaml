@@ -1,0 +1,74 @@
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  Anna Tegon                                                        *
+#* Author:  Thorir Mar Ingolfsson                                             *
+#*----------------------------------------------------------------------------*
+#@package _global_
+
+tag: FEMBA_pretrain
+
+gpus: 4
+num_nodes: 1
+num_workers: 8
+batch_size: 256
+
+final_validate: True
+final_test: False
+
+pretrained_checkpoint_path: null
+io:
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  version: 0
+
+defaults:
+  - override /data_module: pretraining_data_module_TUAB
+  - override /model: FEMBA_finetune
+  - override /scheduler: multi_step_lr
+  - override /task: pretrain_task
+  - override /criterion: pretrain_criterion
+
+masking:
+  patch_size: [2, 16]
+  masking_ratio: 0.6
+
+
+input_normalization:
+  normalize: True
+  quartile_normalization_lower_val: -20
+  quartile_normalization_upper_val:  20
+
+scheduler:
+  gamma: 0.1
+
+trainer:
+  accelerator: gpu
+  log_every_n_steps: 25
+  num_nodes: ${num_nodes}
+  devices: ${gpus}
+  strategy: auto
+  max_epochs: 2
+  gradient_clip_val: 1
+
+model_checkpoint:
+  save_last: True
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+
+optimizer:
+  optim: LAMB
+  lr: 1e-3

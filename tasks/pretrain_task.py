@@ -24,31 +24,7 @@ import torch_optimizer as torch_optim
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import numpy as np
-
-class RobustQuartileNormalize():
-    """
-    Robust normalization based on lower and upper quartiles.
-
-    Args:
-        q_lower (float): Lower quartile value.
-        q_upper (float): Upper quartile value.
-    """
-    def __init__(self, q_lower, q_upper):
-        self.q_lower = q_lower
-        self.q_upper = q_upper
-
-    def __call__(self, tensor):
-        """
-        Apply robust normalization to the input tensor.
-
-        Args:
-            tensor (torch.Tensor): Input tensor to normalize.
-
-        Returns:
-            torch.Tensor: Normalized tensor.
-        """
-        iqr = self.q_upper - self.q_lower
-        return (tensor - self.q_lower) / (iqr + 1e-8)
+from util.train_utils import RobustQuartileNormalize
 
 
 class MaskTask(pl.LightningModule):

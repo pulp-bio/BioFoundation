@@ -1,3 +1,4 @@
+# @package _global_ 
 #*----------------------------------------------------------------------------*
 #* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
 #* SPDX-License-Identifier: Apache-2.0                                        *
@@ -17,13 +18,11 @@
 #* Author:  Anna Tegon                                                        *
 #* Author:  Thorir Mar Ingolfsson                                             *
 #*----------------------------------------------------------------------------*
-# @package _global_ 
-
 model:
   _target_: models.FEMBA.FEMBA
   seq_length: 1280
   num_channels: 22
   exp: 4
   num_classes: 0
-  num_blocks: 20
+  num_blocks: 4
   embed_dim: 79

@@ -67,10 +67,24 @@ optimizer:
   optim: LAMB
   lr: 1e-4
 
+masking:
+  patch_size: [2, 16]
+  masking_ratio: 0.6
+
+input_normalization:
+  normalize: True
+  quartile_normalization_lower_val: -20
+  quartile_normalization_upper_val:  20
+
+scheduler:
+  gamma: 0.1
+
+
+
 defaults:
   - _self_
-  - data_module: eeg_data_module
-  - task: base_task
+  - data_module: pretrain_data_module
+  - task: pretrain_task
   - scheduler: multi_step_lr
-  - model: eegnet
-  - criterion: baseline_criterion
+  - model: FEMBA_pretrain
+  - criterion: pretrain_criterion

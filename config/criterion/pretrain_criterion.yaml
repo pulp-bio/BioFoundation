@@ -17,5 +17,6 @@
 #* Author:  Anna Tegon                                                        *
 #* Author:  Thorir Mar Ingolfsson                                             *
 #*----------------------------------------------------------------------------*
-_target_: criterion.pretrain_criterion.PretrainCriterion
-loss_type: 'smooth_l1'
+criterion:
+  _target_: criterion.pretrain_criterion.PretrainCriterion  
+  loss_type: 'smooth_l1'

@@ -1,3 +1,4 @@
+# @package _global_
 #*----------------------------------------------------------------------------*
 #* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
 #* SPDX-License-Identifier: Apache-2.0                                        *
@@ -17,19 +18,9 @@
 #* Author:  Anna Tegon                                                        *
 #* Author:  Thorir Mar Ingolfsson                                             *
 #*----------------------------------------------------------------------------*
-# @package _global_
-
 scheduler:
   _target_: 'schedulers.multi_step_lr.multi_step_lr'
   milestones: "200000+400000"
   gamma: 0.5
   warmup_iter: -1
   warmup_init_lr: 0
-
-
-
-
-
-
-
-

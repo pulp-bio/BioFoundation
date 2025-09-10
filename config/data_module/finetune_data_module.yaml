@@ -1,3 +1,4 @@
+# @package _global_
 #*----------------------------------------------------------------------------*
 #* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
 #* SPDX-License-Identifier: Apache-2.0                                        *
@@ -17,10 +18,8 @@
 #* Author:  Anna Tegon                                                        *
 #* Author:  Thorir Mar Ingolfsson                                             *
 #*----------------------------------------------------------------------------*
-# @package _global_
-
 data_module:
-  _target_: 'data_module.finetune_data_module.TUABDataModule'
+  _target_: data_module.finetune_data_module.FinetuneDataModule
   name: "eeg"
   cfg:
     num_workers: ${num_workers}

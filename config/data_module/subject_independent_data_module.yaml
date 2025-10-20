@@ -15,14 +15,20 @@
 #* See the License for the specific language governing permissions and        *
 #* limitations under the License.                                             *
 #*                                                                            *
-#* Author:  Thorir Mar Ingolfsson                                             *
-#* Author:  Anna Tegon                                                        *
 #* Author:  Berkay Döner                                                      *
+#* Author:  Thorir Mar Ingolfsson                                             *
 #*----------------------------------------------------------------------------*
-scheduler:
-  _target_: 'schedulers.cosine.CosineLRSchedulerWrapper'
-  trainer: ${trainer}
-  warmup_epochs: 5  
-  min_lr: 1e-6
-  warmup_lr_init: 1e-6
-  t_in_epochs: False # If true, measure time in epochs, if false measure time in steps. Default = False.
+
+data_module:
+  _target_: 'data_module.subject_independent_data_module.SubjectIndependentDataModule'
+  cfg:
+    num_workers: ${num_workers}
+    batch_size: ${batch_size}
+  split_dir: '#CHANGEME'
+  datasets:
+    SEEDV_dataset:
+      _target_: 'datasets.seed_v_dataset.CustomSEEDDataset'
+      root_path: '#CHANGEME'
+      num_workers: ${num_workers}
+      num_channels: 62
+      io_path: '#CHANGEME'

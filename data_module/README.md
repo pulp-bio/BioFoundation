@@ -63,3 +63,62 @@ data_module:
     _target_: 'datasets.hdf5_dataset.HDF5Loader'
     hdf5_file: '${env:DATA_PATH}/TUAB_data/test.h5'
 ```
+
+### 3. **Multiloader Data Module (`multiloader_data_module.py`)**
+
+This module is designed for the self-supervised pre-training phase, where the model learns from a large, unlabeled dataset. Different from the pre-training data module, this data module supports datasets with different electrode configurations. 
+
+**Key Features:**
+-   **Multi-Dataset Handling**: It can take a list of different datasets and concatenate them into a single, large dataset. The datasets are processed sequentially so that a single batch contains data from a single dataset, which make sure that datasets with different number of electrodes can be processed together. It is important that the number of channels for each dataset is specified in the configuration.
+-   **Automatic Splitting**: It automatically splits the combined dataset into training and validation sets based on a specified `train_val_split_ratio` (default is 80/20).
+-   **Subset Loading**: Only a small subset of data can be loaded by specifying `subset_ratio`, which might be useful for debugging.
+
+**Configuration Example (`config/data_module/pretrain_data_module.yaml`):**
+```yaml
+data_module:
+  _target_: 'data_module.multiloader_data_module.VaryingChannelsDataModule'
+  name: "eeg"
+  cfg:
+    num_workers: ${num_workers}
+    batch_size: ${batch_size}
+  train_val_split_ratio: 0.8
+  datasets:
+    Siena_dataset:
+      _target_: 'datasets.siena_dataset.Siena_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 29
+    TUEG_20_channels_0:
+      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 20
+    TUEG_20_channels_1:
+      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 20
+```
+
+### 4. **Subject-independent Data Module (`subject_independent_data_module.py`)**
+This module is used for supervised fine-tuning with a custom train/val/test split based on the subjects. For each subject, different sessions are used for training, validation and testing to make sure that every subject has some data in all the splits.
+
+**Key Features:**
+-  **Distinct Dataloaders**: It manages seperate `Dataloader` instances for the training, validation, and test datasets.
+-  **Split Parameter**: This data module can combine different datasets. For each dataset, the data module relies on user-provided train, validation and test size to extract the sessions to be used for every subject.
+**Configuration Example (`config/data_module/finetune_data_module.yaml`):**
+```yaml
+data_module:
+  _target_: 'data_module.subject_independent_data_module.SubjectIndependentDataModule'
+  cfg:
+    num_workers: ${num_workers}
+    batch_size: ${batch_size}
+  split_dir: '#CHANGEME'
+  datasets:
+    SEEDV_dataset:
+      _target_: 'datasets.seed_v_dataset.CustomSEEDDataset'
+      root_path: '#CHANGEME'
+      num_workers: ${num_workers}
+      num_channels: 62
+      io_path: '#CHANGEME'
+      train_size: 5
+      val_size: 5
+      test_size: 5
+```

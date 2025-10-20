@@ -2,7 +2,7 @@
 
 Copyright (C) 2025 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file for details.
 
-Authors: Thorir Mar Ingolfsson, Anna Tegon, Xiaying Wang, Luca Benini & Yawei Li.
+Authors: Thorir Mar Ingolfsson, Anna Tegon, Berkay Döner, Xiaying Wang, Yawei Li & Luca Benini.
 
 ## About
 
@@ -131,7 +131,7 @@ For questions and support, please open an issue on the GitHub repository.
 
 ## Citing this Work
 
-If you find this work useful, please cite the respective paper
+If you find this work useful, please cite the respective papers:
 
 
 ```bibtex
@@ -144,6 +144,13 @@ If you find this work useful, please cite the respective paper
       primaryClass={cs.LG},
       url={https://arxiv.org/abs/2502.06438}, 
 }
+@inproceedings{döner2025luna,
+  title={{LUNA}: Efficient and Topology-Agnostic Foundation Model for {EEG} Signal Analysis},
+  author={Berkay Döner and Thorir Mar Ingolfsson and Luca Benini and Yawei Li},
+  booktitle={The Thirty-ninth Annual Conference on Neural Information Processing Systems},
+  year={2025},
+  url={https://openreview.net/forum?id=uazfjnFL0G}
+  }
 ```
 
 ## License

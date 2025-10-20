@@ -14,8 +14,9 @@
 #* See the License for the specific language governing permissions and        *
 #* limitations under the License.                                             *
 #*                                                                            *
-#* Author:  Anna Tegon                                                        *
 #* Author:  Thorir Mar Ingolfsson                                             *
+#* Author:  Anna Tegon                                                        *
+#* Author:  Berkay Döner                                                      *
 #*----------------------------------------------------------------------------*
 from torch.optim.lr_scheduler import MultiStepLR
 

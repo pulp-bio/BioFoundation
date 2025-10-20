@@ -15,14 +15,15 @@
 #* See the License for the specific language governing permissions and        *
 #* limitations under the License.                                             *
 #*                                                                            *
-#* Author:  Thorir Mar Ingolfsson                                             *
-#* Author:  Anna Tegon                                                        *
 #* Author:  Berkay Döner                                                      *
+#* Author:  Thorir Mar Ingolfsson                                             *
 #*----------------------------------------------------------------------------*
-scheduler:
-  _target_: 'schedulers.cosine.CosineLRSchedulerWrapper'
-  trainer: ${trainer}
-  warmup_epochs: 5  
-  min_lr: 1e-6
-  warmup_lr_init: 1e-6
-  t_in_epochs: False # If true, measure time in epochs, if false measure time in steps. Default = False.
+model:
+  _target_: models.LUNA.LUNA
+  patch_size: 40
+  embed_dim: 64
+  num_heads: 2
+  depth: 10
+  num_queries: 6
+  drop_path: 0.1
+  num_classes: 2

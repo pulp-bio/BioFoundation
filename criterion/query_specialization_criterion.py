@@ -14,36 +14,33 @@
 #* See the License for the specific language governing permissions and        *
 #* limitations under the License.                                             *
 #*                                                                            *
-#* Author:  Thorir Mar Ingolfsson                                             *
-#* Author:  Anna Tegon                                                        *
 #* Author:  Berkay Döner                                                      *
+#* Author:  Thorir Mar Ingolfsson                                             *
 #*----------------------------------------------------------------------------*
 
-from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from typing import Optional
-import os
-import os.path as osp
 import torch
-import torch.nn as nn
+from torch import nn
+import torch.nn.functional as F
 
+class QuerySpecializationCriterion(nn.Module):
+    def __init__(self, loss_type, loss_coeff=1.0):
+        super(QuerySpecializationCriterion, self).__init__()
+        if loss_type not in ['l1', 'l2', 'smooth_l1']:
+            raise ValueError("Invalid loss_type. Choose 'l1', 'l2', or 'smooth_l1'.")
+        self.loss_type = loss_type
+        self.loss_coeff = loss_coeff
 
-def find_last_checkpoint_path(checkpoint_dir: Optional[str]) -> Optional[str]:
-    if checkpoint_dir is None:
-        return None
-    checkpoint_file_name = (
-        f"{ModelCheckpoint.CHECKPOINT_NAME_LAST}{ModelCheckpoint.FILE_EXTENSION}"
-    )
-    last_checkpoint_filepath = os.path.join(checkpoint_dir, checkpoint_file_name)
-    if not osp.exists(last_checkpoint_filepath):
-        return None
-
-    return last_checkpoint_filepath
-
-class RobustQuartileNormalize:
-    def __init__(self, q_lower, q_upper):
-        self.q_lower = q_lower
-        self.q_upper = q_upper
-
-    def __call__(self, tensor):
-        iqr = self.q_upper - self.q_lower
-        return (tensor - self.q_lower) / (iqr + 1e-8)
+    def forward(self, attention_scores):
+        B, Q, C = attention_scores.size() # B = batch size; Q = num queries; C = num channels
+        query_similarity = torch.bmm(attention_scores, attention_scores.permute(0, 2, 1)) # (B, Q, Q)
+        # Create a mask to zero out the diagonal elements
+        mask = 1.0 - torch.eye(Q, device=attention_scores.device).unsqueeze(0) # Shape (1, Q, Q)
+        # Zero out the diagonal elements of the similarity matrix
+        off_diagonal_similarity = query_similarity * mask # mask broadcasts to (B, Q, Q)
+        if self.loss_type == 'l1':
+            loss = torch.mean(torch.abs(off_diagonal_similarity)) 
+        elif self.loss_type == 'l2':
+            loss = torch.mean(off_diagonal_similarity**2)
+        elif self.loss_type == 'smooth_l1':
+            loss = F.smooth_l1_loss(off_diagonal_similarity, torch.zeros_like(off_diagonal_similarity))
+        return loss * self.loss_coeff

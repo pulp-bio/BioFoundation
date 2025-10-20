@@ -15,14 +15,81 @@
 #* See the License for the specific language governing permissions and        *
 #* limitations under the License.                                             *
 #*                                                                            *
-#* Author:  Thorir Mar Ingolfsson                                             *
-#* Author:  Anna Tegon                                                        *
 #* Author:  Berkay Döner                                                      *
+#* Author:  Thorir Mar Ingolfsson                                             *
 #*----------------------------------------------------------------------------*
+
+tag: LUNA_pretrain
+model_size: small
+gpus: 4
+num_nodes: 1
+num_workers: 32
+batch_size: 2040
+
+final_validate: True
+final_test: False
+resume: False
+pretrained_checkpoint_path: null
+io:
+  base_output_path: "#CHANGEME"
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  version: ${tag}_${model_size}
+
+defaults:
+  - override /data_module: multiloader_data_module
+  - override /model: LUNA_pretrain
+  - override /scheduler: cosine
+  - override /task: pretrain_task_LUNA
+  - override /criterion: pretrain_criterion
+
+query_specialization_criterion:
+  loss_type: 'l2'
+  loss_coeff: 0.8
+
+model: 
+  patch_size: 40
+  embed_dim: 64
+  num_heads: 2
+  depth: 8
+  num_queries: 4
+  mlp_ratio: 4
+  drop_path: 0.0
+  num_classes: 0
+
+masking:
+  patch_size: [1, 40]
+  masking_ratio: 0.5
+  unmasked_loss_coeff: 0.05
+
+input_normalization:
+  normalize: True
+
 scheduler:
-  _target_: 'schedulers.cosine.CosineLRSchedulerWrapper'
   trainer: ${trainer}
-  warmup_epochs: 5  
-  min_lr: 1e-6
-  warmup_lr_init: 1e-6
-  t_in_epochs: False # If true, measure time in epochs, if false measure time in steps. Default = False.
+  min_lr: 2.5e-7 # minimum LR for the cosine scheduler
+  warmup_lr_init: 2.5e-7 # initial LR for the warmup phase 
+  warmup_epochs: 10
+
+trainer:
+  accelerator: gpu
+  num_nodes: ${num_nodes}
+  devices: ${gpus}
+  max_epochs: 100
+  strategy: ddp
+  accumulate_grad_batches: 1
+  check_val_every_n_epoch: 1
+  use_distributed_sampler: False
+  precision: bf16-mixed
+  gradient_clip_val: 1.0
+
+model_checkpoint:
+  save_last: True
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+
+optimizer:
+  optim: 'AdamW'
+  lr: 1.25e-4
+  betas: [0.9, 0.98]
+  weight_decay: 0.05

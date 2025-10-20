@@ -24,11 +24,16 @@ Each document covers the dataset's purpose, size, and specific characteristics.
 
 ### 2. **[Model](./model/)**
 
-This section contains a detailed breakdown of our primary model architecture, **FEMBA**. The documentation covers:
+This section contains a detailed breakdown of our model architectures, **FEMBA** and **LUNA**. For **FEMBA** The documentation covers:
 -   The **architecture overview**, including the tokenizer, encoder, decoder, and classifier heads.
 -   The **bidirectional Mamba block** that forms the core of our encoder.
 -   Details on **model variants** (e.g., FEMBA-tiny, FEMBA-base, FEMBA-large).
 -   The self-supervised learning objective and classification protocols.
+For **LUNA**, the documentation includes:
+-   The **architecture overview**, including the path-feature extraction, channel-unification module, patch-wise temporal encoder, decoder, and classifier heads.
+-   The self-supervised learning objective and classification protocols.
+-   Details on **model variants** (e.g., LUNA-base, LUNA-large, LUNA-huge).
+
 
 ### 3. **[Tasks](./tasks/)**
 

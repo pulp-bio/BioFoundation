@@ -1,0 +1,123 @@
+# @package _global_
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  Berkay Döner                                                      *
+#* Author:  Thorir Mar Ingolfsson                                             *
+#*----------------------------------------------------------------------------*
+
+tag: LUNA_finetune
+model_size: small
+gpus: 4
+num_nodes: 1
+num_workers: 8
+batch_size: 256
+
+training: True
+final_validate: True
+final_test: True
+finetune_pretrained: True
+resume: False
+
+layerwise_lr_decay: 0.75
+scheduler_type: cosine
+classification_type: "mcc" # Change for different TUAR tasks or binary classification for TUAB.
+
+pretrained_checkpoint_path: '#CHANGEME'
+
+
+# data_module:
+#   train:
+#     _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+#     hdf5_file: '#CHANGEME'
+#     finetune: True
+#   val:
+#     _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+#     hdf5_file: '#CHANGEME'
+#     finetune: True
+#   test: 
+#     _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+#     hdf5_file: '#CHANGEME'
+#     finetune: True
+
+callbacks:
+  progress_bar:
+    _target_: 'pytorch_lightning.callbacks.TQDMProgressBar'
+    refresh_rate: 50
+  early_stopping:
+    _target_: 'pytorch_lightning.callbacks.EarlyStopping'
+    monitor: 'val_loss'
+    patience: 8
+    mode: 'min'
+    verbose: True
+
+
+input_normalization:
+  normalize: True
+
+finetuning:
+  freeze_layers: False
+
+io:
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  version: ${tag}_${model_size}_finetune
+  base_output_path: "#CHANGEME"
+
+defaults:
+  - override /data_module: subject_independent_data_module  # To be used for SEED-V dataset
+  # - override /data_module: finetune_data_module # To be used for TU_ datasets
+  - override /model: LUNA_finetune
+  - override /scheduler: cosine
+  - override /task: finetune_task_LUNA
+  - override /criterion: finetune_criterion
+
+model:
+  patch_size: 40
+  embed_dim: 128
+  num_heads: 2
+  depth: 24
+  num_queries: 8
+  mlp_ratio: 4
+  drop_path: 0.1
+  num_classes: 5 # Change for corresponding finetuning dataset
+
+trainer:
+  accelerator: gpu
+  num_nodes: ${num_nodes}
+  devices: ${gpus}
+  strategy: ddp
+  max_epochs: 30
+  precision: bf16-mixed
+
+model_checkpoint:
+  save_last: True
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+  every_n_epochs: 1
+
+optimizer:
+  optim: 'AdamW'
+  lr: 5.0e-4
+  betas: [0.9, 0.999]
+  weight_decay: 0.05
+
+scheduler:
+  trainer: ${trainer}
+  min_lr: 2.5e-6 # minimum LR for the cosine scheduler
+  warmup_lr_init: 2.5e-7 # initial LR for the warmup phase 
+  warmup_epochs: 10
+

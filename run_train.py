@@ -14,8 +14,9 @@
 #* See the License for the specific language governing permissions and        *
 #* limitations under the License.                                             *
 #*                                                                            *
-#* Author:  Anna Tegon                                                        *
 #* Author:  Thorir Mar Ingolfsson                                             *
+#* Author:  Anna Tegon                                                        *
+#* Author:  Berkay Döner                                                      *
 #*----------------------------------------------------------------------------*
 import os
 import logging
@@ -49,7 +50,7 @@ def train(cfg: DictConfig):
     date_format = "%d_%m_%H-%M"  
 
     # Create your version_name
-    version= f"12seqbimamba35_unfrozen_mambaClass{datetime.now().strftime(date_format)}" 
+    version= f"{cfg.tag}_{datetime.now().strftime(date_format)}"
     
     # tensorboard
     tb_logger = TensorBoardLogger(save_dir=osp.expanduser(cfg.io.base_output_path), name=cfg.tag, version=version)

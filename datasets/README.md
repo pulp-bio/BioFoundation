@@ -43,3 +43,14 @@ Our framework is primarily designed to work with several of the Temple Universit
 -   **Purpose**: This is our primary dataset for self-supervised pre-training.
 -   **Size**: One of the largest publicly available EEG corpora, containing over 21,000 hours of recordings from more than 14,000 patients.
 -   **Usage**: We use this large, diverse dataset to train our foundation models to learn robust representations of EEG signals before fine-tuning them on specific downstream tasks.
+
+### 5. SEED-V Dataset
+- **Purpose**: EEG-based emotion recognition with video-elicited stimuli.
+- **Size**: 15 subjects with 15 sessions. Includes 62 electrodes.
+- **Tasks**: Multi-class classification, 5 classes for emotions in SEED-V.
+- **Notes**: Usually used with subject-independent evaluation; the subject_independent_data_module is supported for this dataset.
+
+### 6. **Siena Dataset**
+-   **Purpose**: The Siena dataset is used for self-supervised pre-training.
+-   **Size**: 14 subjects and 141 hours of EEG data. Includes 29 electrodes.
+-   **Usage**: We use this dataset to have different electrode configurations in out pre-training data, in addition to TUEG dataset.

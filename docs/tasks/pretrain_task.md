@@ -1,3 +1,5 @@
+Copyright (C) 2025 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file at the root of the repository for details.
+
 # Pretrain task
 
 The PretrainTask defines a masked signal modeling pretraining pipeline for time-series data, specifically EEG signals. It employs a self-supervised learning strategy inspired by masked modeling, where portions of the input signal are masked and the model is trained to reconstruct the missing parts. This encourages the encoder to learn meaningful representations of the input signal.

@@ -24,3 +24,4 @@ torchaudio
 torcheeg
 torchmetrics
 warmup-scheduler
+safetensors

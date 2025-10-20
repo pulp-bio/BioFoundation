@@ -22,6 +22,7 @@ import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 import hydra
+from safetensors.torch import load_file
 import torch_optimizer as torch_optim
 import torch.nn.functional as F
 from torchmetrics import MetricCollection
@@ -111,6 +112,23 @@ class FinetuneTask(pl.LightningModule):
         """
         assert self.model.classifier is not None
         print("Loading pretrained checkpoint from .safetensors file")
+        state_dict = load_file(model_ckpt)
+        self.load_state_dict(state_dict, strict=False)
+
+        for name, param in self.model.named_parameters():
+            if self.hparams.finetuning.freeze_layers:
+                param.requires_grad = True
+            if 'classifier' in name:
+                param.requires_grad = True
+
+        print("Pretrained model ready.")
+    
+    def load_safetensors_checkpoint(self, model_ckpt):
+        """
+        Load a pretrained model checkpoint in safetensors format and unfreeze specific layers for fine-tuning.
+        """
+        assert self.model.classifier is not None
+        print("Loading pretrained safetensors checkpoint")
         state_dict = load_file(model_ckpt)
         self.load_state_dict(state_dict, strict=False)
 

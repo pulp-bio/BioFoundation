@@ -30,7 +30,6 @@ from torchmetrics.classification import (
     Accuracy, Precision, Recall, AUROC,
     AveragePrecision, CohenKappa, F1Score
 )
-from safetensors.torch import load_file
 from util.train_utils import RobustQuartileNormalize
 
 class FinetuneTask(pl.LightningModule):
@@ -111,9 +110,9 @@ class FinetuneTask(pl.LightningModule):
         Load a pretrained model checkpoint and unfreeze specific layers for fine-tuning.
         """
         assert self.model.classifier is not None
-        print("Loading pretrained checkpoint from .safetensors file")
-        state_dict = load_file(model_ckpt)
-        self.load_state_dict(state_dict, strict=False)
+        print("Loading pretrained checkpoint")
+        ckpt = torch.load(model_ckpt)
+        self.load_state_dict(ckpt['state_dict'], strict=False)
 
         for name, param in self.model.named_parameters():
             if self.hparams.finetuning.freeze_layers:

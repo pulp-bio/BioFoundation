@@ -36,22 +36,8 @@ layerwise_lr_decay: 0.75
 scheduler_type: cosine
 classification_type: "mcc" # Change for different TUAR tasks or binary classification for TUAB.
 
-pretrained_checkpoint_path: '#CHANGEME'
-
-
-# data_module:
-#   train:
-#     _target_: 'datasets.tueg_dataset.TUEG_Dataset'
-#     hdf5_file: '#CHANGEME'
-#     finetune: True
-#   val:
-#     _target_: 'datasets.tueg_dataset.TUEG_Dataset'
-#     hdf5_file: '#CHANGEME'
-#     finetune: True
-#   test: 
-#     _target_: 'datasets.tueg_dataset.TUEG_Dataset'
-#     hdf5_file: '#CHANGEME'
-#     finetune: True
+pretrained_checkpoint_path: None
+pretrained_safetensors_path: None
 
 callbacks:
   progress_bar:
@@ -77,22 +63,30 @@ io:
   base_output_path: "#CHANGEME"
 
 defaults:
-  - override /data_module: subject_independent_data_module  # To be used for SEED-V dataset
-  # - override /data_module: finetune_data_module # To be used for TU_ datasets
-  - override /model: LUNA_finetune
+  # - override /data_module: subject_independent_data_module  # To be used for SEED-V dataset
+  - override /data_module: finetune_data_module # To be used for TUH datasets
+  - override /model: LUNA_base # Or LUNA_large, LUNA_huge
   - override /scheduler: cosine
   - override /task: finetune_task_LUNA
   - override /criterion: finetune_criterion
 
+# To be used for TUH datasets otherwise comment data_module section away.
+data_module:
+  train:
+    _target_: 'datasets.tuh_dataset.TUH_Dataset'
+    hdf5_file: '#CHANGEME'
+    finetune: True
+  val:
+    _target_: 'datasets.tuh_dataset.TUH_Dataset'
+    hdf5_file: '#CHANGEME'
+    finetune: True
+  test: 
+    _target_: 'datasets.tuh_dataset.TUH_Dataset'
+    hdf5_file: '#CHANGEME'
+    finetune: True
+
 model:
-  patch_size: 40
-  embed_dim: 128
-  num_heads: 2
-  depth: 24
-  num_queries: 8
-  mlp_ratio: 4
-  drop_path: 0.1
-  num_classes: 5 # Change for corresponding finetuning dataset
+  num_classes: 4 # Change for corresponding finetuning dataset
 
 trainer:
   accelerator: gpu

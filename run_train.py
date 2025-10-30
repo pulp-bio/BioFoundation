@@ -32,8 +32,7 @@ from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning import seed_everything
 from datetime import datetime
-# Check the hostname to set the DATA_PATH accordingly
-hostname = os.uname().nodename
+
 
 os.environ['DATA_PATH'] = "#CHANGEME"
 os.environ['CHECKPOINT_DIR'] = '#CHANGEME'
@@ -64,11 +63,17 @@ def train(cfg: DictConfig):
     model = hydra.utils.instantiate(cfg.task, cfg)
     print(model)
 
+    safetensors_path = cfg.get('pretrained_safetensors_path', None)
+    checkpoint_path = cfg.get('pretrained_checkpoint_path', None)
+
     # Load pretrained checkpoint
-    if cfg.pretrained_checkpoint_path is not None:
-        print(f"===> Loading pretrained_checkpoint from {cfg.pretrained_checkpoint_path}")
-        model.load_pretrained_checkpoint(cfg.pretrained_checkpoint_path)
-    
+    if safetensors_path is not None:
+        print(f"===> Loading pretrained safetensors from {safetensors_path}")
+        # Assuming your model has this method
+        model.load_safetensors_checkpoint(safetensors_path) 
+    elif checkpoint_path is not None:
+        print(f"===> Loading pretrained checkpoint from {checkpoint_path}")
+        model.load_pretrained_checkpoint(checkpoint_path)
     else:
        print("No pretrained checkpoint provided. Proceeding without loading.")
 

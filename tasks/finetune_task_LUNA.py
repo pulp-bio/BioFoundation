@@ -29,6 +29,7 @@ from torchmetrics.classification import (
     Accuracy, Precision, Recall, AUROC,
     AveragePrecision, CohenKappa, F1Score
 )
+from safetensors.torch import load_file
 
 class ChannelWiseNormalize:
     def __init__(self, eps=1e-8):
@@ -123,6 +124,25 @@ class FinetuneTask(pl.LightningModule):
         state_dict = {k: v for k, v in state_dict.items() if 'decoder_head' not in k and "channel_emb" not in k}
         ckpt['state_dict'] = state_dict
         self.model.load_state_dict(ckpt['state_dict'], strict=False)
+
+        for name, param in self.model.named_parameters():
+            if self.hparams.finetuning.freeze_layers:
+                param.requires_grad = False
+            if 'classifier' in name:
+                param.requires_grad = True
+
+        print("Pretrained model ready.")
+
+    def load_safetensors_checkpoint(self, model_ckpt):
+        """
+        Load a pretrained model checkpoint in safetensors format and unfreeze specific layers for fine-tuning.
+        """
+        assert self.model.classifier is not None
+        print("Loading pretrained safetensors checkpoint")
+        state_dict = load_file(model_ckpt)
+        state_dict = {k: v for k, v in state_dict.items() if 'decoder_head' not in k and "channel_emb" not in k}
+        self.load_state_dict(state_dict, strict=False)
+
 
         for name, param in self.model.named_parameters():
             if self.hparams.finetuning.freeze_layers:

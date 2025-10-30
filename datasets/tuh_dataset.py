@@ -49,7 +49,7 @@ CHN_ORDER = [
 ]
 
 
-class TUEG_Dataset(torch.utils.data.Dataset):
+class TUH_Dataset(torch.utils.data.Dataset):
     def __init__(self, hdf5_file, num_channels=None, finetune=False):
         self.hdf5_file = hdf5_file
         self.num_channels = num_channels

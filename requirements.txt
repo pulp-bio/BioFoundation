@@ -25,3 +25,4 @@ torcheeg
 torchmetrics
 warmup-scheduler
 safetensors
+rotary-embedding-torch

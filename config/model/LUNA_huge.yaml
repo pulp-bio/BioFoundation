@@ -21,9 +21,9 @@
 model:
   _target_: models.LUNA.LUNA
   patch_size: 40
-  embed_dim: 64
+  embed_dim: 128
   num_heads: 2
-  depth: 10
-  num_queries: 6
+  depth: 24
+  num_queries: 8
   drop_path: 0.1
   num_classes: 2

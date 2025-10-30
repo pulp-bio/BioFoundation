@@ -77,10 +77,6 @@ input_normalization:
   quartile_normalization_lower_val: -20
   quartile_normalization_upper_val:  20
 
-scheduler:
-  gamma: 0.1
-
-
 
 defaults:
   - _self_

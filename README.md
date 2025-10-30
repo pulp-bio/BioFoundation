@@ -2,10 +2,16 @@
 
 <p align="center">
   <a href="https://arxiv.org/abs/2502.06438">
-    <img src="https://img.shields.io/badge/arXiv-2502.06438-b31b1b.svg" alt="arXiv">
+    <img src="https://img.shields.io/badge/arXiv-2502.06438-b31b1b.svg" alt="FEMBA Paper">
+  </a>
+  <a href="https://arxiv.org/abs/2510.22257">
+    <img src="https://img.shields.io/badge/arXiv-2510.22257-b31b1b.svg" alt="LUNA Paper">
   </a>
   <a href="https://huggingface.co/thorir/FEMBA">
     <img src="https://img.shields.io/badge/HuggingFace-FEMBA-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: FEMBA">
+  </a>
+  <a href="https://huggingface.co/thorir/LUNA">
+    <img src="https://img.shields.io/badge/HuggingFace-LUNA-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: LUNA">
   </a>
   <a href="https://github.com/pulp-bio/BioFoundation">
     <img src="https://img.shields.io/github/stars/pulp-bio/BioFoundation?style=social" alt="GitHub Stars">
@@ -28,6 +34,9 @@ Looking for ready-to-use weights of models? We host them on Hugging Face:
 
 ### Currently available:
 - **FEMBA** ([paper](https://arxiv.org/abs/2502.06438)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-FEMBA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/thorir/FEMBA)
+- **LUNA** ([paper](https://arxiv.org/abs/2510.22257)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-LUNA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/thorir/LUNA)
+
+
 #### Why FEMBA?
 - **Scales to long EEG** with linear-time Mamba (no quadratic attention).
 - **Strong results** on TUAB/TUAR/TUSL with ready task-specific checkpoints.
@@ -60,6 +69,51 @@ export CHECKPOINT_DIR=checkpoints/FEMBA/TUAR/base.safetensors
 python -u run_train.py +experiment=FEMBA_finetune
 ```
 
+#### Why LUNA?
+- **Topology-agnostic** EEG via **query-based channel unification** (consistent latent across arbitrary montages).
+- **Linear-in-channels** compute & memory (unifies channels **before** temporal modeling; no quadratic spatio-temporal attention).
+- **Pretrained on >21k hours** (TUEG + Siena) with masked-patch reconstruction; strong transfer across datasets/montages.
+- **Simple fine-tune path:** pick model size with `LUNA_{base,large,huge}.yaml`, set `pretrained_safetensors_path`, run `+experiment=LUNA_finetune`.
+
+**➡️ Model hub:** https://huggingface.co/thorir/LUNA  
+**📄 Model card:** [LUNA on Hugging Face](https://huggingface.co/thorir/LUNA) — variants, configs, and fine-tuning walkthrough.  
+**📜 Weights license:** CC BY-ND 4.0 (use + redistribute **unmodified** weights with attribution; no redistribution of **modified** weights)  
+**🧑‍🍳 PR-gated improvements:** If you fine-tune internally and want your variant to become an **official** LUNA release, open a PR with configs, logs, and evals. We’ll review; if it looks good, we’ll retrain/validate and publish an **official** LUNA checkpoint.
+
+**What you’ll find on the hub**
+- `Base/`, `Large/`, `Huge/` → LUNA size variants (matching `config/model/LUNA_{base,large,huge}.yaml`)
+- Task-specific heads/checkpoints for common TUH downstream tasks (TUAB / TUAR / TUSL)
+
+Quick download with `huggingface_hub`:
+```bash
+pip install huggingface_hub
+```
+```python
+from huggingface_hub import snapshot_download
+
+# downloads LUNA folders and .safetensors into ./checkpoints/LUNA
+snapshot_download(repo_id="thorir/LUNA", repo_type="model", local_dir="checkpoints/LUNA")
+```
+
+Use the paths directly in your runs like here below:
+```bash
+python -u run_train.py +experiment=LUNA_finetune /model=LUNA_base \
+  pretrained_safetensors_path=/absolute/path/to/checkpoints/LUNA/Base/LUNA_base.safetensors
+
+python -u run_train.py +experiment=LUNA_finetune /model=LUNA_large \
+  pretrained_safetensors_path=/absolute/path/to/checkpoints/LUNA/Large/LUNA_large.safetensors
+
+python -u run_train.py +experiment=LUNA_finetune /model=LUNA_huge \
+  pretrained_safetensors_path=/absolute/path/to/checkpoints/LUNA/Huge/LUNA_huge.safetensors
+```
+*If your checkpoint path contains spaces, wrap it in quotes.*
+
+Tips:
+- TUH datasets (TUAB/TUAR/TUSL): keep `- override /data_module: finetune_data_module` and set `data_module.*.hdf5_file` to your `{train,val,test}.h5`.  
+- Non-TUH (e.g., SEED-V): use `- override /data_module: subject_independent_data_module` and remove the TUH-specific `data_module` block.  
+- Match task settings: `classification_type` (`bc`, `mc`, `mmc`, `mcc`) and `model.num_classes` (e.g., TUSL=4, TUAB=2).
+
+
 ## Features
 
 * **Modular Design**: The repository is organized into modules for data loading, models, training tasks, and more, making it easy to extend and adapt for new research projects.
@@ -85,15 +139,27 @@ Throughout the repository, you may find paths that need to be adjusted based on 
 
 ## Dataset Preparation
 
-The datasets used in this repository need to be downloaded and processed into the HDF5 format that the dataloaders expect. Other data formats can be supported, but then the dataloaders need to be modified accordingly. For our experiments we used the HDF5 format. The following steps outline how to prepare the datasets:
+The datasets used in this repository should be converted to HDF5 for efficient I/O. Other formats can work, but you’d need to adapt the dataloaders accordingly.
+To prepare the TUH EEG datasets (see the [official source](https://isip.piconepress.com/projects/nedc/html/tuh_eeg/index.shtml)), follow these steps:
 
-1.  **Download Raw Data**: Download the raw TUH EEG datasets (TUEG, TUAB, TUSL, TUAR) from their official sources.
-2.  **Process Data**: Use the provided script to process the raw data into HDF5 files.
+1. **Download raw data** from the official sources (e.g., TUH EEG corpus).
+2. **Preprocess to pickles** (windowing/labels):
+   ```bash
+   # examples (adjust paths)
+   python make_datasets/process_raw_eeg.py tuab --root_dir /eeg_data/TUAB/edf --output_dir /processed_eeg
+   python make_datasets/process_raw_eeg.py tusl --root_dir /eeg_data/TUSL/edf --output_dir /processed_eeg
+   python make_datasets/process_raw_eeg.py tuar --root_dir /eeg_data/TUAR/edf --output_dir /processed_eeg
+   ```
+3.  **Bundle into HDF5:**: Use the provided script to process the raw data into HDF5 files.
     ```bash
-    python make_datasets/make_hdf5.py
+    # all datasets found under /processed_eeg
+    python make_datasets/make_hdf5.py --prepath /processed_eeg --dataset All --remove_pkl
+
+    # or a single dataset
+    python make_datasets/make_hdf5.py --prepath /processed_eeg --dataset TUSL --remove_pkl
     ```
     You may need to edit the `prepath` variable in the script to point to the directory where you have downloaded the raw data.
-3.  **Update Configs**: Make sure the paths to the generated `.h5` files are correctly specified in the relevant data module configuration files (e.g., `config/data_module/pretrain_data_module.yaml`).
+4.  **Update Configs**: so `data_module.*.hdf5_file` points to your `${DATA_PATH}/<DATASET>_data/{train,val,test}.h5`
 
 ## How to Run
 ### Pre-training
@@ -209,18 +275,18 @@ If you find this work useful, please cite the respective papers:
       primaryClass={cs.LG},
       url={https://arxiv.org/abs/2502.06438}, 
 }
-@inproceedings{döner2025luna,
+@inproceedings{doner2025luna,
   title={{LUNA}: Efficient and Topology-Agnostic Foundation Model for {EEG} Signal Analysis},
-  author={Berkay Döner and Thorir Mar Ingolfsson and Luca Benini and Yawei Li},
+  author={Berkay D{\"o}ner and Thorir Mar Ingolfsson and Luca Benini and Yawei Li},
   booktitle={The Thirty-ninth Annual Conference on Neural Information Processing Systems},
   year={2025},
   url={https://openreview.net/forum?id=uazfjnFL0G}
-  }
+}
 ```
 
 ## License
 This project is licensed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for details.
 
 
-**Note on model weights:** Pretrained FEMBA weights are hosted at https://huggingface.co/thorir/FEMBA and licensed under **CC BY-ND 4.0**. You may use and redistribute the **unmodified** weights with attribution. Redistribution of **modified** weights is not permitted. To upstream improvements, please open a PR; accepted changes will be released as **official** FEMBA checkpoints.
+**Note on model weights:** Pretrained weights are hosted at https://huggingface.co/thorir/FEMBA and https://huggingface.co/thorir/LUNA and licensed under **CC BY-ND 4.0**. You may use and redistribute the **unmodified** weights with attribution. Redistribution of **modified** weights is not permitted. To upstream improvements, please open a PR; accepted changes will be released as **official** checkpoints.
 

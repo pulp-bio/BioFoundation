@@ -31,146 +31,146 @@ data_module:
       hdf5_file: "#CHANGEME"
       num_channels: 29
     TUEG_20_channels_0:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 20
     TUEG_20_channels_1:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 20
     TUEG_20_channels_2:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 20
     TUEG_22_channels_0:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_10:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_11:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_12:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_13:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_14:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_16:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_17:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_18:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_19:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_1:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_20:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_23:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_24:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_31:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_3:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_4:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_5:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_15:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_21:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_22:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_25:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_26:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_27:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_28:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_20_channels_3:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 20
     TUEG_22_channels_29:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_2:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_30:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_6:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_7:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_8:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22
     TUEG_22_channels_9:
-      _target_: 'datasets.tueg_dataset.TUEG_Dataset'
+      _target_: 'datasets.tuh_dataset.TUH_Dataset'
       hdf5_file: "#CHANGEME"
       num_channels: 22

@@ -1,5 +1,17 @@
 # BioFoundation
 
+<p align="center">
+  <a href="https://arxiv.org/abs/2502.06438">
+    <img src="https://img.shields.io/badge/arXiv-2502.06438-b31b1b.svg" alt="arXiv">
+  </a>
+  <a href="https://huggingface.co/thorir/FEMBA">
+    <img src="https://img.shields.io/badge/HuggingFace-FEMBA-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: FEMBA">
+  </a>
+  <a href="https://github.com/pulp-bio/BioFoundation">
+    <img src="https://img.shields.io/github/stars/pulp-bio/BioFoundation?style=social" alt="GitHub Stars">
+  </a>
+</p>
+
 Copyright (C) 2025 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file for details.
 
 Authors: Thorir Mar Ingolfsson, Anna Tegon, Berkay Döner, Xiaying Wang, Yawei Li & Luca Benini.
@@ -10,11 +22,49 @@ Authors: Thorir Mar Ingolfsson, Anna Tegon, Berkay Döner, Xiaying Wang, Yawei L
 
 This repository is built on PyTorch Lightning and Hydra to enable reproducible and scalable research.
 
+## 🤗 Pretrained Weights on Hugging Face
+
+Looking for ready-to-use weights of models? We host them on Hugging Face:
+
+### Currently available:
+- **FEMBA** ([paper](https://arxiv.org/abs/2502.06438)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-FEMBA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/thorir/FEMBA)
+#### Why FEMBA?
+- **Scales to long EEG** with linear-time Mamba (no quadratic attention).
+- **Strong results** on TUAB/TUAR/TUSL with ready task-specific checkpoints.
+- **Simple fine-tune path:** set `CHECKPOINT_DIR`, run `+experiment=FEMBA_finetune`.
+
+**➡️ Model hub:** https://huggingface.co/thorir/FEMBA  
+**📄 Model card:** [FEMBA on Hugging Face](https://huggingface.co/thorir/FEMBA) — benchmarks, protocols, and efficiency notes.  
+**📜 Weights license:** CC BY-ND 4.0 (use + redistribute **unmodified** weights with attribution; no redistribution of **modified** weights)  
+**🧑‍🍳 PR-gated improvements:** If you fine-tune internally and want your variant to become an **official** FEMBA release, open a PR with configs, logs, and evals. We’ll review together; if it looks good, we’ll retrain/validate and publish an **official** FEMBA checkpoint.
+**What you’ll find on the hub**
+- `TUAB/` → abnormal EEG (base/large)
+- `TUAR/` → artifact detection (tiny/base/large)
+- `TUSL/` → slowing classification (variants as in the paper)
+
+Quick download with `huggingface_hub`:
+```bash
+pip install huggingface_hub
+```
+```python
+from huggingface_hub import snapshot_download
+
+# downloads all task folders (TUAB/TUAR/TUSL) and safetensors into ./checkpoints/FEMBA
+snapshot_download(repo_id="thorir/FEMBA", repo_type="model", local_dir="checkpoints/FEMBA")
+```
+
+Use the paths directly in your runs, e.g.:
+```bash
+export DATA_PATH=/path/to/data
+export CHECKPOINT_DIR=checkpoints/FEMBA/TUAR/base.safetensors
+python -u run_train.py +experiment=FEMBA_finetune
+```
+
 ## Features
 
 * **Modular Design**: The repository is organized into modules for data loading, models, training tasks, and more, making it easy to extend and adapt for new research projects.
 * **Flexible Configuration**: We use [Hydra](https://hydra.cc/docs/intro/) to manage experiment configurations, allowing for easy customization of models, data, and training parameters.
-* **Reproducibility**: Our use of `hydra` and PyTorch Lightning helps ensure that our experiments are reproducible.
+* **Reproducibility**: Our use of `Hydra` and PyTorch Lightning helps ensure that our experiments are reproducible.
 * **Extensible**: The repository is designed to be easily extended with new datasets, models, and tasks.
 
 ## Installation
@@ -31,11 +81,11 @@ pip install -r requirements.txt
 ```
 
 ### Path changes
-Throughout the repository, you may find paths that need to be adjusted based on your local setup. For example, the path to the datasets in the configuration files or the scripts that process the datasets. Make sure to update these paths accordingly. They have been named "#CHANGEME" to faciliate finding them.
+Throughout the repository, you may find paths that need to be adjusted based on your local setup. For example, the path to the datasets in the configuration files or the scripts that process the datasets. Make sure to update these paths accordingly. They have been named "#CHANGEME" to facilitate finding them.
 
 ## Dataset Preparation
 
-The datasets used in this repository need to be downloaded and processed into the HDF5 format that the dataloaders expect. Other dataformats can be supported, but then the dataloaders need to be modified accordingly. For our experiments we used the HDF5 format. The following steps outline how to prepare the datasets:
+The datasets used in this repository need to be downloaded and processed into the HDF5 format that the dataloaders expect. Other data formats can be supported, but then the dataloaders need to be modified accordingly. For our experiments we used the HDF5 format. The following steps outline how to prepare the datasets:
 
 1.  **Download Raw Data**: Download the raw TUH EEG datasets (TUEG, TUAB, TUSL, TUAR) from their official sources.
 2.  **Process Data**: Use the provided script to process the raw data into HDF5 files.
@@ -61,6 +111,10 @@ To run a fine-tuning experiment, you can use the `run_train.py` script with the 
 python -u run_train.py +experiment=FEMBA_finetune
 
 ```
+
+> **Tip:** Pretrained FEMBA weights (TUAB/TUAR/TUSL folders) are available on 🤗 Hugging Face:  
+> https://huggingface.co/thorir/FEMBA  
+> Set `CHECKPOINT_DIR` to the desired `.safetensors` (e.g., `.../TUAR/base.safetensors`) before launching.
 
 Note in both cases one needs to make sure that the dataset that specific experiment is using is downloaded and available in the correct path.
 
@@ -103,12 +157,23 @@ We welcome contributions to BioFoundation! If you have a new model, dataset, or 
 2. Add the configuration file of the model to [`./config/model`](./config/model).
 ### How to start a new experiment with the added model?
 1. Add experiment configuration file to [`./config/experiment`](./config/experiment). 
-    If you are interested, you may check the [hydra document about it](https://hydra.cc/docs/patterns/configuring_experiments/).
+    If you are interested, you may check the [Hydra document about it](https://hydra.cc/docs/patterns/configuring_experiments/).
 2. Override the default configurations in the added experiment configuration file.
 3. Run the experiment with the command:
 ```bash
 python -u run_train.py +experiment=your_experiment_name
 ```
+
+### Contributing improvements to FEMBA weights
+We’re excited to see what you build. Because the weights are **CC BY-ND 4.0**, redistribution of **modified** weights (e.g., LoRA/adapters, deltas, pruned or quantized variants) is **not permitted**.  
+If you fine-tune internally and believe your results should become an **official** FEMBA release, please open a PR with:
+- exact **configs**, **seeds**, and **training scripts**,
+- **environment** and **hardware** details,
+- **evaluation protocol** (TUAB/TUAR/TUSL), **splits**, and full **metrics** (AUROC/AUPR/BA, FLOPs, memory),
+- training and validation **logs**.
+
+Maintainers will review; if accepted, we will retrain/validate and publish a new **official** checkpoint on 🤗 under the same license.
+
 ## General Tips
 
 ### How to use distributed data parallel?
@@ -155,3 +220,7 @@ If you find this work useful, please cite the respective papers:
 
 ## License
 This project is licensed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for details.
+
+
+**Note on model weights:** Pretrained FEMBA weights are hosted at https://huggingface.co/thorir/FEMBA and licensed under **CC BY-ND 4.0**. You may use and redistribute the **unmodified** weights with attribution. Redistribution of **modified** weights is not permitted. To upstream improvements, please open a PR; accepted changes will be released as **official** FEMBA checkpoints.
+

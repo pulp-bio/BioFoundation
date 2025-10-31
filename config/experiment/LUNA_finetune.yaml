@@ -36,8 +36,8 @@ layerwise_lr_decay: 0.75
 scheduler_type: cosine
 classification_type: "mcc" # Change for different TUAR tasks or binary classification for TUAB.
 
-pretrained_checkpoint_path: None
-pretrained_safetensors_path: None
+pretrained_checkpoint_path: null
+pretrained_safetensors_path: null
 
 callbacks:
   progress_bar:

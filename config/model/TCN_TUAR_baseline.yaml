@@ -1,0 +1,12 @@
+tag: TCN_TUAR_baseline
+
+model:
+  _target_: models.tcn_baseline.TCNClassifier
+  in_channels: ${model.num_channels}
+  num_classes: ${model.num_classes}
+
+  # TCN hyperparameters
+  hidden_channels: 64
+  num_levels: 5
+  kernel_size: 3
+  dropout: 0.1

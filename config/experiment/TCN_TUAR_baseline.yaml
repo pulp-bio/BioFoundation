@@ -1,0 +1,68 @@
+
+tag: TCN_TUAR_baseline
+
+gpus: 1
+num_nodes: 1
+num_workers: 8
+batch_size: 256
+
+num_channels: 22
+num_classes: 2
+
+training: True
+final_validate: True
+final_test: True
+finetune_pretrained: True
+
+layerwise_lr_decay: 0.75
+scheduler_type: cosine
+
+pretrained_checkpoint_path:  null
+
+input_normalization:
+  normalize: True
+  quartile_normalization_lower_val: -20
+  quartile_normalization_upper_val:  20
+
+finetuning:
+  freeze_layers: True
+
+io:
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  version: 0
+
+defaults:
+  - /data_module: finetune_data_module
+  - /model: TCN_TUAR_baseline
+  - /scheduler: cosine
+  - /task: finetune_task
+  - /criterion: finetune_criterion
+
+model:
+ classification_type: "bc"
+
+trainer:
+  accelerator: gpu
+  num_nodes: 1
+  devices: ${gpus}
+  strategy: ddp
+  max_epochs: 5
+
+model_checkpoint:
+  save_last: True
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+
+optimizer:
+  optim: 'AdamW'
+  lr: 5.0e-4
+  betas: [0.9, 0.999]
+  weight_decay: 0.5
+
+scheduler:
+  trainer: ${trainer}
+  min_lr: 2.5e-6 # minimum LR for the cosine scheduler
+  warmup_lr_init: 2.5e-7 # initial LR for the warmup phase 
+  warmup_epochs: 10
+

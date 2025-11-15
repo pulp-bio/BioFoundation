@@ -9,7 +9,7 @@ lightning
 tqdm
 pandas
 mne
-nvidia-nccl-cu11
+# nvidia-nccl-cu11 # only needed on Linux multi-GPU
 psutil
 pyyaml
 tensorboardX

@@ -1,0 +1,24 @@
+tag: TCN_TUAR_train
+
+defaults:
+  - /data_module: finetune_data_module
+  - /model: TCN_TUAR_baseline
+  - /task: finetune_task        
+  - /criterion: finetune_criterion  
+  - /scheduler: cosine           
+
+model:
+  num_classes: 2
+  classification_type: "bc"
+  num_channels: 22
+
+trainer:
+  accelerator: gpu
+  devices: 1
+  max_epochs: 40
+  strategy: auto
+
+optimizer:
+  optim: Adam
+  lr: 1e-3
+  weight_decay: 1e-4

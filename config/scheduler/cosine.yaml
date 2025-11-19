@@ -26,3 +26,4 @@ scheduler:
   min_lr: 1e-6
   warmup_lr_init: 1e-6
   t_in_epochs: False # If true, measure time in epochs, if false measure time in steps. Default = False.
+  seed: ${seed}

@@ -1,0 +1,15 @@
+# @package _global_ 
+model:
+  _target_: models.EMG.EMG
+  img_size: 1000
+  patch_size: 20
+  in_chans: 16
+  embed_dim: 192
+  n_layer: 8
+  n_head: 3
+  mlp_ratio: 4
+  qkv_bias: True
+  attn_drop: 0.1
+  proj_drop: 0.1
+  drop_path: 0.1
+  num_classes: 0

@@ -72,16 +72,6 @@ masking:
   patch_size: [2, 16]
   masking_ratio: 0.6
 
-input_normalization:
-  normalize: True
-  quartile_normalization_lower_val: -20
-  quartile_normalization_upper_val:  20
-
-scheduler:
-  gamma: 0.1
-
-
-
 defaults:
   - _self_
   - data_module: pretrain_data_module

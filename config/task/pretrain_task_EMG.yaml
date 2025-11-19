@@ -1,0 +1,3 @@
+# @package _global_
+task:
+  _target_: 'tasks.pretrain_task_EMG.MaskTask'

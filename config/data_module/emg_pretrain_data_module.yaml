@@ -1,0 +1,19 @@
+# @package _global_
+data_module:
+  _target_: 'data_module.pretrain_data_module.PretrainDataModule'
+  name: "emg"
+  cfg:
+    num_workers: ${num_workers}
+    batch_size: ${batch_size}
+  test: null
+  train_val_split_ratio: 0.8
+  datasets:
+    demo_dataset: null
+    db6:
+      _target_: 'datasets.emg_pretrain_dataset.EMGPretrainDataset'
+      data_dir: "/capstor/scratch/cscs/mfasulo/datasets/ninapro/DB6/h5/"
+      pad_up_to_max_chans: 16
+    db7:
+      _target_: 'datasets.emg_pretrain_dataset.EMGPretrainDataset'
+      data_dir: "/capstor/scratch/cscs/mfasulo/datasets/ninapro/DB7/h5/"
+      pad_up_to_max_chans: 16

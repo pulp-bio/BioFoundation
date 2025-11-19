@@ -1,0 +1,19 @@
+# @package _global_
+data_module:
+  _target_: data_module.finetune_data_module.FinetuneDataModule
+  name: "emg"
+  cfg:
+    num_workers: ${num_workers}
+    batch_size: ${batch_size}
+  train:
+    _target_: 'datasets.emg_finetune_dataset.EMGDataset'
+    hdf5_file: /capstor/scratch/cscs/mfasulo/datasets/EPN612/h5/train.h5
+    finetune: true
+  val:
+    _target_: 'datasets.emg_finetune_dataset.EMGDataset'
+    hdf5_file: /capstor/scratch/cscs/mfasulo/datasets/EPN612/h5/val.h5
+    finetune: true
+  test:
+    _target_: 'datasets.emg_finetune_dataset.EMGDataset'
+    hdf5_file: /capstor/scratch/cscs/mfasulo/datasets/EPN612/h5/test.h5
+    finetune: true

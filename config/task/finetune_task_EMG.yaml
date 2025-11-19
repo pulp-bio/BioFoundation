@@ -1,0 +1,3 @@
+# @package _global_
+task:
+  _target_: 'tasks.finetune_task_EMG.FinetuneTask'

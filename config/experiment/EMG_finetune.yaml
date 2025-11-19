@@ -1,0 +1,69 @@
+#@package _global_
+tag: EMG_finetune
+
+gpus: 4
+num_nodes: 1
+num_workers: 64
+batch_size: 32
+max_epochs: 50
+
+training: True
+final_validate: False
+final_test: True
+
+layerwise_lr_decay: 0.90
+scheduler_type: cosine
+
+pretrained_checkpoint_path: /capstor/scratch/cscs/mfasulo/checkpoints/pretraining/20@rope@gelu/20@rope@gelu-epoch=49-val_loss=0.0091.ckpt
+
+finetuning:
+  freeze_layers: False
+
+io:
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  version: 0
+
+defaults:
+  - override /data_module: emg_finetune_data_module
+  - override /model: EMG_finetune
+  - override /scheduler: cosine
+  - override /task: finetune_task_EMG
+  - override /criterion: finetune_criterion
+
+model:
+  num_classes: 6
+  classification_type: "ml"
+
+trainer:
+  accelerator: gpu
+  precision: '16-mixed'
+  log_every_n_steps: 5
+  num_nodes: ${num_nodes}
+  devices: ${gpus}
+  strategy: ddp_find_unused_parameters_true
+  max_epochs: ${max_epochs}
+
+model_checkpoint:
+  save_last: True
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+
+early_stopping:
+  monitor: "val_loss"
+  patience: 7
+  mode: "min"
+  verbose: True
+
+optimizer:
+  optim: 'AdamW'
+  lr: 5e-4
+  betas: [0.9, 0.98]
+  weight_decay: 0.01
+
+scheduler:
+  min_lr: 1e-5
+  warmup_lr_init: 1e-5
+  warmup_epochs: 5
+  total_training_opt_steps: ${max_epochs}
+  t_in_epochs: True

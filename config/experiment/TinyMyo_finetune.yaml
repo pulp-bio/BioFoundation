@@ -1,0 +1,102 @@
+# @package _global_
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  Matteo Fasulo                                                     *
+#*----------------------------------------------------------------------------*
+tag: EMG_finetune
+
+gpus: -1
+num_nodes: 1
+num_workers: 8
+batch_size: 32
+max_epochs: 50
+
+training: True
+final_validate: True
+final_test: True
+finetune_pretrained: True
+resume: False
+
+layerwise_lr_decay: 0.90
+scheduler_type: cosine
+
+pretrained_checkpoint_path: null
+pretrained_safetensors_path: null
+
+finetuning:
+  freeze_layers: False
+
+io:
+  base_output_path: ${env:DATA_PATH}
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  version: 0
+
+defaults:
+  - override /data_module: emg_finetune_data_module
+  - override /model: TinyMyo_finetune
+  - override /scheduler: cosine
+  - override /task: finetune_task_TinyMyo
+  - override /criterion: finetune_criterion
+
+masking:
+  patch_size: [1, 20]
+  masking_ratio: 0.50
+  unmasked_loss_coeff: 0.1
+
+input_normalization:
+  normalize: False
+  quartile_normalization_lower_val: -20
+  quartile_normalization_upper_val:  20
+
+model:
+  num_classes: 6
+  classification_type: "ml"
+
+trainer:
+  accelerator: gpu
+  num_nodes: ${num_nodes}
+  devices: ${gpus}
+  strategy: ddp_find_unused_parameters_true
+  max_epochs: ${max_epochs}
+
+model_checkpoint:
+  save_last: True
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+
+callbacks:
+  early_stopping:
+    _target_: 'pytorch_lightning.callbacks.EarlyStopping'
+    monitor: "val_loss"
+    patience: 7
+    mode: "min"
+    verbose: True
+
+optimizer:
+  optim: 'AdamW'
+  lr: 5e-4
+  betas: [0.9, 0.98]
+  weight_decay: 0.01
+
+scheduler:
+  trainer: ${trainer}
+  min_lr: 1e-5
+  warmup_lr_init: 1e-5
+  warmup_epochs: 5
+  total_training_opt_steps: ${max_epochs}
+  t_in_epochs: True

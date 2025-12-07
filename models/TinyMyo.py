@@ -365,6 +365,99 @@ class EMGClassificationHead(nn.Module):
         return logits
 
 
+class EMGRegressionHead(nn.Module):
+    """
+    A regression head for EMG (Electromyography) signals using convolutional layers.
+
+    This module processes embedded features from a transformer model to perform
+    regression, predicting output signals of a specified dimension and length. It supports
+    different reduction methods for combining channel and patch features, followed by
+    convolutional layers for regression, and optional upsampling to a target sequence length.
+
+    Args:
+        in_chans (int): Number of input channels (e.g., EMG channels).
+        embed_dim (int): Dimension of the input embeddings.
+        output_dim (int): Dimension of the output regression targets.
+        reduction (str, optional): Method to reduce features across channels.
+            "mean" averages embeddings, "concat" concatenates them. Defaults to "concat".
+        hidden_dim (int, optional): Hidden dimension for the convolutional layers. Defaults to 256.
+        dropout (float, optional): Dropout probability applied after the first convolution. Defaults to 0.1.
+        target_length (int, optional): Desired length of the output sequence. If the input length differs,
+            linear interpolation is used to upsample. Defaults to 500.
+
+    Attributes:
+        in_chans (int): Number of input channels.
+        embed_dim (int): Dimension of the embeddings.
+        output_dim (int): Dimension of the output.
+        reduction (str): Reduction method used.
+        dropout (float): Dropout rate.
+        target_length (int): Target output sequence length.
+    """
+
+    def __init__(
+        self,
+        in_chans: int,
+        embed_dim: int,
+        output_dim: int,
+        reduction: str = "concat",
+        hidden_dim: int = 256,
+        dropout: float = 0.1,
+        target_length: int = 500,
+    ):
+        super().__init__()
+        self.in_chans = in_chans
+        self.embed_dim = embed_dim
+        self.output_dim = output_dim
+        self.reduction = reduction
+        self.dropout = dropout
+        self.target_length = target_length
+
+        feat_dim = embed_dim if reduction == "mean" else in_chans * embed_dim
+
+        self.regressor = nn.Sequential(
+            nn.Conv1d(feat_dim, hidden_dim, kernel_size=1),
+            nn.SiLU(),
+            nn.Dropout(dropout),
+            # depthwise 3x3 conv: groups=hidden_dim to hidden_dimx3 params
+            nn.Conv1d(
+                hidden_dim, hidden_dim, kernel_size=3, padding=1, groups=hidden_dim
+            ),
+            nn.SiLU(),
+            # pointwise 1x1 back to output_dim
+            nn.Conv1d(hidden_dim, output_dim, kernel_size=1),
+        )
+
+        # Initialize weights
+        self.apply(self._init_weights)
+
+    def _init_weights(self, m):
+        if isinstance(m, nn.Conv1d):
+            nn.init.kaiming_uniform_(m.weight, nonlinearity="relu")
+            if m.bias is not None:
+                nn.init.zeros_(m.bias)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x: (B, num_tokens, token_dim)
+        if self.reduction == "mean":
+            x = rearrange(x, "b (c p) d -> b p d", c=self.in_chans)
+        else:  # concat
+            x = rearrange(x, "b (c p) d -> b p (c d)", c=self.in_chans)
+
+        # conv head expects (B, C, L)
+        x = x.transpose(1, 2)  # (B, feat_dim, num_patches)
+        x = self.regressor(x)  # (B, output_dim, num_patches)
+
+        # now upsample to target length
+        if x.size(-1) != self.target_length:
+            x = F.interpolate(
+                x, size=self.target_length, mode="linear", align_corners=False
+            )
+
+        # x: (B, output_dim, target_length)
+        out = x.transpose(1, 2)  # (B, target_length, output_dim)
+        return out
+
+
 class TinyMyo(nn.Module):
     def __init__(
         self,
@@ -380,8 +473,10 @@ class TinyMyo(nn.Module):
         proj_drop: float = 0.1,
         drop_path: float = 0.1,
         norm_layer=nn.LayerNorm,
-        num_classes: int = 53,
+        task: str = "classification",
         classification_type: str = "ml",
+        num_classes: int = 53,
+        reg_target_len: int = 500,
     ):
         super().__init__()
 
@@ -392,8 +487,9 @@ class TinyMyo(nn.Module):
         self.n_layer = n_layer
         self.n_head = n_head
         self.embed_dim = embed_dim
-        self.num_classes = num_classes
+        self.task = task
         self.classification_type = classification_type
+        self.num_classes = num_classes
 
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
 
@@ -422,20 +518,32 @@ class TinyMyo(nn.Module):
         )
         self.norm = norm_layer(embed_dim)
 
-        if num_classes == 0:  # reconstruction (pre-training)
+        if (
+            self.task == "pretraining" or num_classes == 0
+        ):  # reconstruction (pre-training)
             self.model_head = PatchReconstructionHead(
                 img_size=img_size,
                 patch_size=patch_size,
                 in_chans=in_chans,
                 embed_dim=embed_dim,
             )
-        else:  # classification (fine-tuning)
+        elif self.task == "classification" and num_classes > 0:
             self.model_head = EMGClassificationHead(
                 embed_dim=embed_dim,
                 num_classes=num_classes,
                 reduction="concat",
                 in_chans=in_chans,
             )
+        elif self.task == "regression":
+            self.model_head = EMGRegressionHead(
+                in_chans=in_chans,
+                embed_dim=embed_dim,
+                output_dim=num_classes,
+                reduction="concat",
+                target_length=reg_target_len,
+            )
+        else:
+            raise ValueError(f"Unknown task type {self.task}")
         self.initialize_weights()
 
         # Some checks
@@ -483,10 +591,10 @@ class TinyMyo(nn.Module):
             x = blk(x)
         x_latent = self.norm(x)  # [B, N, D]
 
-        if self.num_classes > 0:
-            x_classified = self.model_head(x_latent)  # [B, Out]
-            return x_classified, x_original
-
-        else:
+        if self.num_classes == 0:  # reconstruction
             x_reconstructed = self.model_head(x_latent)  # [B, N, patch_size]
             return x_reconstructed, x_original
+
+        else:  # classification or regression
+            x_out = self.model_head(x_latent)  # [B, Out]
+            return x_out, x_original

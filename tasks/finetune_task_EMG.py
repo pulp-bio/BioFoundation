@@ -21,6 +21,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch_optimizer as torch_optim
+from omegaconf import DictConfig
 from safetensors.torch import load_file
 from torchmetrics import MetricCollection
 from torchmetrics.classification import (
@@ -54,7 +55,7 @@ class FinetuneTask(pl.LightningModule):
     - Layer-wise learning rate decay for fine-grained learning rate control across model blocks
     """
 
-    def __init__(self, hparams):
+    def __init__(self, hparams: DictConfig):
         """
         Initialize the FinetuneTask module.
 

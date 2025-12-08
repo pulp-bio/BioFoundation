@@ -24,6 +24,30 @@ import torch
 
 
 class EMGDataset(torch.utils.data.Dataset):
+    """
+    A PyTorch Dataset class for loading EMG (Electromyography) data from HDF5 files.
+    This dataset supports lazy loading of data from HDF5 files, with optional caching
+    to improve performance during training. It can be used for both fine-tuning (with labels)
+    and inference (without labels) modes. The class handles data preprocessing, such as
+    converting to tensors and optional unsqueezing.
+    Attributes:
+        hdf5_file (str): Path to the HDF5 file containing the dataset.
+        unsqueeze (bool): Whether to add an extra dimension to the input data (default: False).
+        finetune (bool): If True, loads both data and labels; if False, loads only data (default: True).
+        cache_size (int): Maximum number of samples to cache in memory (default: 1500).
+        use_cache (bool): Whether to use caching for faster access (default: True).
+        regression (bool): If True, treats labels as regression targets (float); else, classification (long) (default: False).
+        num_samples (int): Total number of samples in the dataset, determined from HDF5 file.
+        data (h5py.File or None): Handle to the opened HDF5 file (lazy-loaded).
+        X_ds (h5py.Dataset or None): Dataset handle for input data.
+        Y_ds (h5py.Dataset or None): Dataset handle for labels (if finetune is True).
+        cache (dict): Dictionary for caching data items (if use_cache is True).
+        cache_queue (deque): Queue to track the order of cached items for LRU eviction.
+    Note:
+        - The HDF5 file is expected to have 'data' and 'label' datasets.
+        - Caching uses an LRU (Least Recently Used) eviction policy.
+        - Suitable for use with PyTorch DataLoader for batched loading.
+    """
 
     def __init__(
         self,

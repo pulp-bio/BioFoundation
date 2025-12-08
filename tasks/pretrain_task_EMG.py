@@ -1,21 +1,21 @@
-#*----------------------------------------------------------------------------*
-#* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
-#* SPDX-License-Identifier: Apache-2.0                                        *
-#*                                                                            *
-#* Licensed under the Apache License, Version 2.0 (the "License");            *
-#* you may not use this file except in compliance with the License.           *
-#* You may obtain a copy of the License at                                    *
-#*                                                                            *
-#* http://www.apache.org/licenses/LICENSE-2.0                                 *
-#*                                                                            *
-#* Unless required by applicable law or agreed to in writing, software        *
-#* distributed under the License is distributed on an "AS IS" BASIS,          *
-#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
-#* See the License for the specific language governing permissions and        *
-#* limitations under the License.                                             *
-#*                                                                            *
-#* Author:  Matteo Fasulo                                                     *
-#*----------------------------------------------------------------------------*
+# *----------------------------------------------------------------------------*
+# * Copyright (C) 2025 ETH Zurich, Switzerland                                 *
+# * SPDX-License-Identifier: Apache-2.0                                        *
+# *                                                                            *
+# * Licensed under the Apache License, Version 2.0 (the "License");            *
+# * you may not use this file except in compliance with the License.           *
+# * You may obtain a copy of the License at                                    *
+# *                                                                            *
+# * http://www.apache.org/licenses/LICENSE-2.0                                 *
+# *                                                                            *
+# * Unless required by applicable law or agreed to in writing, software        *
+# * distributed under the License is distributed on an "AS IS" BASIS,          *
+# * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+# * See the License for the specific language governing permissions and        *
+# * limitations under the License.                                             *
+# *                                                                            *
+# * Author:  Matteo Fasulo                                                     *
+# *----------------------------------------------------------------------------*
 import hydra
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,6 +23,7 @@ import pytorch_lightning as pl
 import torch
 import torch_optimizer as torch_optim
 from einops import rearrange
+from omegaconf import DictConfig
 
 from util.train_utils import MinMaxNormalization
 
@@ -35,7 +36,7 @@ class MaskTask(pl.LightningModule):
         hparams (DictConfig): Parameters and configurations loaded via Hydra.
     """
 
-    def __init__(self, hparams):
+    def __init__(self, hparams: DictConfig):
         super().__init__()
         self.save_hyperparameters(hparams)
         self.model = hydra.utils.instantiate(self.hparams.model)
@@ -61,12 +62,12 @@ class MaskTask(pl.LightningModule):
         device=None,
     ):
         """
-        Generate token-level mask following the same pattern as `random_masking` in your model.
+        Generate token-level mask.
 
         Returns:
             ids_shuffle:    (B, N) LongTensor  -- indices used to shuffle tokens (argsort of noise)
             ids_restore:    (B, N) LongTensor  -- indices to restore original ordering (argsort of ids_shuffle)
-            mask:           (B, N) BoolTensor  -- 1 indicates masked token (same semantics as your implementation)
+            mask:           (B, N) BoolTensor  -- 1 indicates masked token
         """
         device = torch.device(
             "cuda"

@@ -127,14 +127,26 @@ class RotaryPositionalEmbeddings(nn.Module):
 
 
 class PatchEmbedWaveformKeepChans(nn.Module):
-    """Waveform to embedding that maintain the channel dimension"""
+    """
+    Patch embedding layer for waveform data that keeps channel information.
+
+    This module embeds patches from waveform inputs while preserving the channel dimension.
+    It uses a 2D convolution to project patches into an embedding space, and rearranges
+    the output to flatten patches across channels and time.
+
+    Args:
+        img_size (int): The size of the input waveform in the time dimension.
+        patch_size (int): The size of each patch in the time dimension.
+        in_chans (int): Number of input channels.
+        embed_dim (int): Dimensionality of the embedding space.
+    """
 
     def __init__(
         self,
-        img_size: int = 64,
-        patch_size: int = 8,
-        in_chans: int = 23,
-        embed_dim: int = 1024,
+        img_size: int = 1000,
+        patch_size: int = 20,
+        in_chans: int = 16,
+        embed_dim: int = 192,
     ):
         super().__init__()
         self.img_size = img_size
@@ -162,16 +174,15 @@ class PatchingModule(nn.Module):
 
     def __init__(
         self,
-        img_size: int = 64,
-        patch_size: int = 8,
-        in_chans: int = 23,
-        embed_dim: int = 1024,
+        img_size: int = 1000,
+        patch_size: int = 20,
+        in_chans: int = 16,
+        embed_dim: int = 192,
     ):
         super().__init__()
         self.patch_embed = PatchEmbedWaveformKeepChans(
             img_size, patch_size, in_chans, embed_dim
         )
-
         self.num_patches = self.patch_embed.num_patches
         self.init_patch_embed()
 
@@ -185,14 +196,31 @@ class PatchingModule(nn.Module):
 
 
 class RotarySelfAttentionBlock(nn.Module):
+    """
+    A self-attention block that incorporates rotary positional embeddings (RoPE) for enhanced positional awareness.
+
+    This module implements multi-head self-attention with rotary positional embeddings applied to query and key tensors,
+    followed by scaled dot-product attention. It is designed for transformer-based architectures, particularly in vision
+    or sequence modeling tasks where positional information is crucial.
+
+    Attributes:
+        dim (int): The dimensionality of the input and output features.
+        num_heads (int): The number of attention heads.
+        rope (RotaryPositionalEmbeddings): The rotary positional embedding module.
+        scale (float): The scaling factor for attention logits.
+        qkv (nn.Linear): Linear layer for projecting input to query, key, and value.
+        attn_drop_fn (nn.Dropout): Dropout layer for attention weights.
+        proj (nn.Linear): Linear layer for projecting attention output.
+        proj_drop (nn.Dropout): Dropout layer for projection output.
+    """
+
     def __init__(
         self,
-        dim,
-        num_heads=8,
-        qkv_bias=True,
-        qk_scale=None,
-        attn_drop=0.0,
-        proj_drop=0.0,
+        dim: int,
+        num_heads: int = 8,
+        qkv_bias: bool = True,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
         **kwargs,
     ):
         super().__init__()
@@ -204,9 +232,6 @@ class RotarySelfAttentionBlock(nn.Module):
             base=10_000,
             max_seq_len=1024,
         )
-
-        self.scale = qk_scale or head_dim**-0.5
-
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
         self.attn_drop = attn_drop
         self.attn_drop_fn = nn.Dropout(attn_drop)
@@ -241,16 +266,33 @@ class RotarySelfAttentionBlock(nn.Module):
 
 
 class RotaryTransformerBlock(nn.Module):
+    """
+    A transformer block that incorporates rotary self-attention for enhanced positional encoding.
+
+    This block applies layer normalization, rotary self-attention, and a multi-layer perceptron (MLP)
+    in sequence, with optional drop paths for regularization. It follows a standard transformer
+    architecture but uses rotary embeddings to improve handling of sequential data.
+
+    Args:
+        dim (int): The dimensionality of the input and output features.
+        num_heads (int): The number of attention heads in the self-attention mechanism.
+        mlp_ratio (float, optional): The ratio of hidden features in the MLP to the input dimension. Defaults to 4.0.
+        qkv_bias (bool, optional): Whether to include bias terms in the query, key, and value projections. Defaults to False.
+        drop (float, optional): Dropout rate for the MLP and attention projections. Defaults to 0.0.
+        attn_drop (float, optional): Dropout rate specifically for the attention weights. Defaults to 0.0.
+        drop_path (float, optional): Drop path rate for stochastic depth regularization. Defaults to 0.0.
+        norm_layer (nn.Module, optional): Normalization layer to use. Defaults to nn.LayerNorm.
+    """
+
     def __init__(
         self,
-        dim,
-        num_heads,
-        mlp_ratio=4.0,
-        qkv_bias=False,
-        qk_scale=None,
-        drop=0.0,
-        attn_drop=0.0,
-        drop_path=0.0,
+        dim: int,
+        num_heads: int,
+        mlp_ratio: float = 4.0,
+        qkv_bias: bool = False,
+        drop: float = 0.0,
+        attn_drop: float = 0.0,
+        drop_path: float = 0.0,
         norm_layer=nn.LayerNorm,
     ):
         super().__init__()
@@ -259,7 +301,6 @@ class RotaryTransformerBlock(nn.Module):
             dim=dim,
             num_heads=num_heads,
             qkv_bias=qkv_bias,
-            qk_scale=qk_scale,
             attn_drop=attn_drop,
             proj_drop=drop,
         )
@@ -280,12 +321,33 @@ class RotaryTransformerBlock(nn.Module):
 
 
 class PatchReconstructionHead(nn.Module):
+    """
+    A neural network module for reconstructing image patches from token embeddings.
+
+    This head takes token embeddings as input and projects them back to the pixel space
+    for patch reconstruction. It is designed for use in vision transformer models where
+    patches are embedded and then reconstructed.
+
+        img_size (int, optional): The size of the input image. Defaults to 1000.
+        patch_size (int, optional): The size of each patch. Defaults to 20.
+        in_chans (int, optional): Number of input channels. Defaults to 16.
+        embed_dim (int, optional): Dimensionality of the embedding space. Defaults to 192.
+
+    Attributes:
+        in_chans (int): Number of input channels.
+        img_size (int): The size of the input image.
+        patch_size (int): The size of each patch.
+        embed_dim (int): Dimensionality of the embedding space.
+        reconstruction_shape (int): Shape of the reconstructed patch, equal to patch_size.
+        decoder_pred (nn.Linear): Linear layer for projecting embeddings to pixel space.
+    """
+
     def __init__(
         self,
-        img_size: int = 64,
-        patch_size: int = 8,
-        in_chans: int = 23,
-        embed_dim: int = 768,
+        img_size: int = 1000,
+        patch_size: int = 20,
+        in_chans: int = 16,
+        embed_dim: int = 192,
     ):
         super().__init__()
         self.in_chans = in_chans
@@ -311,6 +373,23 @@ class PatchReconstructionHead(nn.Module):
 
 
 class EMGClassificationHead(nn.Module):
+    """
+    A classification head for EMG (Electromyography) data processing, designed to classify token embeddings into a specified number of classes.
+
+    This module takes token embeddings as input, applies a reduction strategy (either mean or concatenation across channels),
+    averages across patches, and then uses a linear classifier to produce logits for classification.
+
+        embed_dim (int, optional): Dimensionality of the token embeddings. Defaults to 192.
+        num_classes (int, optional): Number of output classes for classification. Defaults to 53.
+        reduction (str, optional): Reduction strategy for combining channel features. Options are "mean" or "concat".
+            - "mean": Averages across channels, resulting in feature dimension of embed_dim.
+            - "concat": Concatenates across channels, resulting in feature dimension of in_chans * embed_dim. Defaults to "concat".
+        in_chans (int, optional): Number of input channels (e.g., EMG channels). Defaults to 16.
+
+    Attributes:
+        classifier (nn.Linear): Linear layer for final classification, mapping from reduced feature dimension to num_classes.
+    """
+
     def __init__(
         self,
         embed_dim: int = 192,
@@ -459,6 +538,32 @@ class EMGRegressionHead(nn.Module):
 
 
 class TinyMyo(nn.Module):
+    """
+    TinyMyo is a bidirectional Transformer model based on the Vision Transformer (ViT) architecture, adapted for electromyography (EMG) signal processing.
+    It supports multiple tasks including pretraining (reconstruction), classification, and regression.
+
+    The model uses a patch-based embedding approach to process input signals, followed by a series of transformer blocks with rotary position embeddings.
+    It includes a masking token for pretraining tasks and different heads for various downstream tasks.
+
+    Args:
+        img_size (int, optional): The size of the input signal (temporal dimension). Defaults to 1000.
+        patch_size (int, optional): The size of each patch for embedding. Defaults to 20.
+        in_chans (int, optional): Number of input channels (e.g., EMG channels). Defaults to 16.
+        embed_dim (int, optional): Dimensionality of the embedding space. Defaults to 192.
+        n_layer (int, optional): Number of transformer layers. Defaults to 8.
+        n_head (int, optional): Number of attention heads. Defaults to 3.
+        mlp_ratio (int, optional): Ratio for expanding the MLP hidden dimension. Defaults to 4.
+        qkv_bias (bool, optional): Whether to include bias in QKV projections. Defaults to True.
+        attn_drop (float, optional): Dropout rate for attention. Defaults to 0.1.
+        proj_drop (float, optional): Dropout rate for projections. Defaults to 0.1.
+        drop_path (float, optional): Stochastic depth drop path rate. Defaults to 0.1.
+        norm_layer (nn.Module, optional): Normalization layer class. Defaults to nn.LayerNorm.
+        task (str, optional): Task type, one of "pretraining", "classification", or "regression". Defaults to "classification".
+        classification_type (str, optional): Type of classification (e.g., "ml" for multi-label). Defaults to "ml".
+        num_classes (int, optional): Number of classes for classification or output dimension for regression. Defaults to 53.
+        reg_target_len (int, optional): Target length for regression output. Defaults to 500.
+    """
+
     def __init__(
         self,
         img_size: int = 1000,
@@ -581,6 +686,18 @@ class TinyMyo(nn.Module):
             rescale(layer.mlp.fc2.weight.data, layer_id + 1)
 
     def forward(self, x, directly_input_tokens: bool = False):
+        """
+        Forward pass through the model.
+
+        Args:
+            x (torch.Tensor): Input tensor. If directly_input_tokens is False, expected shape is (B, C, T) where B is batch size, C is channels, T is time steps. If True, expected shape is (B, N, D) where N is number of patches, D is embedding dimension.
+            directly_input_tokens (bool, optional): If True, skips patch embedding and assumes x is already tokenized. Defaults to False.
+
+        Returns:
+            tuple: A tuple containing:
+                - If self.num_classes == 0 (reconstruction mode): (x_reconstructed, x_original) where x_reconstructed is the reconstructed output of shape (B, N, patch_size), and x_original is the original input.
+                - Otherwise (classification or regression mode): (x_out, x_original) where x_out is the model output of shape (B, Out), and x_original is the original input.
+        """
         # x_signal: (B, C, T)
         x_original = x.clone()
         if not directly_input_tokens:

@@ -1,21 +1,21 @@
-#*----------------------------------------------------------------------------*
-#* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
-#* SPDX-License-Identifier: Apache-2.0                                        *
-#*                                                                            *
-#* Licensed under the Apache License, Version 2.0 (the "License");            *
-#* you may not use this file except in compliance with the License.           *
-#* You may obtain a copy of the License at                                    *
-#*                                                                            *
-#* http://www.apache.org/licenses/LICENSE-2.0                                 *
-#*                                                                            *
-#* Unless required by applicable law or agreed to in writing, software        *
-#* distributed under the License is distributed on an "AS IS" BASIS,          *
-#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
-#* See the License for the specific language governing permissions and        *
-#* limitations under the License.                                             *
-#*                                                                            *
-#* Author:  Matteo Fasulo                                                     *
-#*----------------------------------------------------------------------------*
+# *----------------------------------------------------------------------------*
+# * Copyright (C) 2025 ETH Zurich, Switzerland                                 *
+# * SPDX-License-Identifier: Apache-2.0                                        *
+# *                                                                            *
+# * Licensed under the Apache License, Version 2.0 (the "License");            *
+# * you may not use this file except in compliance with the License.           *
+# * You may obtain a copy of the License at                                    *
+# *                                                                            *
+# * http://www.apache.org/licenses/LICENSE-2.0                                 *
+# *                                                                            *
+# * Unless required by applicable law or agreed to in writing, software        *
+# * distributed under the License is distributed on an "AS IS" BASIS,          *
+# * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+# * See the License for the specific language governing permissions and        *
+# * limitations under the License.                                             *
+# *                                                                            *
+# * Author:  Matteo Fasulo                                                     *
+# *----------------------------------------------------------------------------*
 import os
 import threading
 from collections import deque
@@ -38,6 +38,27 @@ def _get_h5_handle(path):
 
 
 class EMGPretrainDataset(Dataset):
+    """
+    A PyTorch Dataset class for loading EMG (electromyography) data from HDF5 files for pretraining purposes.
+    This dataset discovers all .h5 files in the specified directory, builds an index of samples across all files,
+    and provides access to individual samples. It supports optional caching to improve performance, channel padding,
+    and squeezing of the data tensor.
+    Args:
+        data_dir (str): Path to the directory containing .h5 files.
+        squeeze (bool, optional): Whether to squeeze the data tensor. Defaults to False.
+        cache_size (int, optional): Size of the cache. Defaults to 1500.
+        use_cache (bool, optional): Enable caching. Defaults to True.
+        pad_up_to_max_chans (int | None, optional): Number of channels to pad to. Defaults to None.
+        max_samples (int | None, optional): Limit the total number of samples. Defaults to None.
+    Raises:
+        RuntimeError: If no .h5 files are found in the data directory.
+    Note:
+        The .h5 files are expected to have a 'data' dataset with shape (N, C, T), where N is the number of samples,
+        C is the number of channels, and T is the number of time points.
+        Caching uses a simple LRU mechanism with a deque to track access order.
+        The __del__ method ensures that any open HDF5 file handles are closed upon deletion.
+    """
+
     def __init__(
         self,
         data_dir: str,

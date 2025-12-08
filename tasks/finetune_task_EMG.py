@@ -44,9 +44,7 @@ class FinetuneTask(pl.LightningModule):
     - Classification types:
         - `bc`: Binary Classification
         - `ml`: Multi-Label Classification
-        - 'mc': Multi-Label Classification for TUAR
         - `mcc`: Multi-Class Classification
-        - `mmc`: Multi-Class Multi-Output Classification
 
     - Metric logging during training, validation, and testing, including accuracy, precision, recall, F1 score, AUROC, and more
     - Optional input normalization with configurable normalization functions
@@ -76,7 +74,7 @@ class FinetuneTask(pl.LightningModule):
                 self.normalize_fct = MinMaxNormalization()
 
         # Loss function
-        if self.classification_type == "mc":
+        if self.classification_type == "mcc":
             self.criterion = nn.BCEWithLogitsLoss()
         else:
             self.criterion = nn.CrossEntropyLoss(label_smoothing=0.10)

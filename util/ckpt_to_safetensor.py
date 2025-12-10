@@ -65,5 +65,10 @@ if __name__ == "__main__":
             print(f" - {key}")
 
     # Save the parameters in safetensors format
-    save_file(parameters, args.safetensor_path)
-    print(f"Safetensors file saved to {args.safetensor_path}")
+    safetensor_path = (
+        args.safetensor_path
+        if args.safetensor_path.endswith(".safetensors")
+        else args.safetensor_path + ".safetensors"
+    )
+    save_file(parameters, safetensor_path)
+    print(f"Safetensors file saved to {safetensor_path}")

@@ -59,8 +59,6 @@ masking:
 
 input_normalization:
   normalize: False
-  quartile_normalization_lower_val: -20
-  quartile_normalization_upper_val:  20
 
 model:
   num_classes: 6

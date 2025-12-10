@@ -5,8 +5,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
-from timm.layers import DropPath, Mlp
-from timm.layers import trunc_normal_ as __call_trunc_normal_
+from timm.layers.drop import DropPath
+from timm.layers.mlp import Mlp
+from timm.layers.weight_init import trunc_normal_ as __call_trunc_normal_
 
 
 def trunc_normal_(tensor, mean=0.0, std=1.0):
@@ -48,7 +49,7 @@ class RotaryPositionalEmbeddings(nn.Module):
         self.rope_init()
 
     def rope_init(self):
-        theta = 1.0 / (
+        theta: torch.Tensor = 1.0 / (
             self.base
             ** (torch.arange(0, self.dim, 2)[: (self.dim // 2)].float() / self.dim)
         )
@@ -161,8 +162,13 @@ class PatchEmbedWaveformKeepChans(nn.Module):
             stride=(1, self.patch_size),
         )
 
-    def forward(self, x):
-        B, C, T = x.shape
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Input waveform tensor of shape (B, C, T)
+        Returns:
+            Patch embeddings of shape (B, N, D) where N is number of patches and D is embed_dim
+        """
         # shared projection layer across channels
         x = self.proj(x.unsqueeze(1))
         x = rearrange(x, "B D C t -> B (C t) D")
@@ -191,7 +197,7 @@ class PatchingModule(nn.Module):
         w = self.patch_embed.proj.weight.data
         torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.patch_embed(x)
 
 
@@ -238,7 +244,7 @@ class RotarySelfAttentionBlock(nn.Module):
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, N, C = x.shape
         qkv = (
             self.qkv(x)
@@ -250,6 +256,7 @@ class RotarySelfAttentionBlock(nn.Module):
         q = self.rope(q)
         k = self.rope(k)
 
+        # pylint: disable=not-callable
         x = F.scaled_dot_product_attention(
             q,
             k,
@@ -314,7 +321,7 @@ class RotaryTransformerBlock(nn.Module):
             drop=drop,
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x + self.drop_path1(self.attn(self.norm1(x)))
         x = x + self.drop_path2(self.mlp(self.norm2(x)))
         return x
@@ -362,7 +369,7 @@ class PatchReconstructionHead(nn.Module):
             self.embed_dim, self.reconstruction_shape, bias=True
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         No cls token is expected
         Args:
@@ -411,7 +418,7 @@ class EMGClassificationHead(nn.Module):
         # init weights
         self.apply(self._init_weights)
 
-    def _init_weights(self, m):
+    def _init_weights(self, m: nn.Module):
         if isinstance(m, nn.Linear):
             torch.nn.init.xavier_uniform_(m.weight)
             if isinstance(m, nn.Linear) and m.bias is not None:
@@ -424,7 +431,7 @@ class EMGClassificationHead(nn.Module):
         Returns:
             logits: (B, num_classes)
         """
-        B, N, D = x.shape
+        _, N, _ = x.shape
         num_patches = N // self.in_chans
 
         if self.reduction == "mean":
@@ -516,6 +523,17 @@ class EMGRegressionHead(nn.Module):
                 nn.init.zeros_(m.bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the model.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (B, num_tokens, token_dim), where B is batch size,
+                              num_tokens is the number of tokens, and token_dim is the token dimension.
+
+        Returns:
+            torch.Tensor: Output tensor of shape (B, target_length, output_dim), where target_length
+                          is the target sequence length and output_dim is the output dimension.
+        """
         # x: (B, num_tokens, token_dim)
         if self.reduction == "mean":
             x = rearrange(x, "b (c p) d -> b p d", c=self.in_chans)
@@ -618,7 +636,7 @@ class TinyMyo(nn.Module):
                     drop_path=drop_path,
                     norm_layer=norm_layer,
                 )
-                for i in range(n_layer)
+                for _ in range(n_layer)
             ]
         )
         self.norm = norm_layer(embed_dim)
@@ -626,21 +644,21 @@ class TinyMyo(nn.Module):
         if (
             self.task == "pretraining" or num_classes == 0
         ):  # reconstruction (pre-training)
-            self.model_head = PatchReconstructionHead(
+            self.model_head: nn.Module = PatchReconstructionHead(
                 img_size=img_size,
                 patch_size=patch_size,
                 in_chans=in_chans,
                 embed_dim=embed_dim,
             )
         elif self.task == "classification" and num_classes > 0:
-            self.model_head = EMGClassificationHead(
+            self.model_head: nn.Module = EMGClassificationHead(
                 embed_dim=embed_dim,
                 num_classes=num_classes,
                 reduction="concat",
                 in_chans=in_chans,
             )
         elif self.task == "regression":
-            self.model_head = EMGRegressionHead(
+            self.model_head: nn.Module = EMGRegressionHead(
                 in_chans=in_chans,
                 embed_dim=embed_dim,
                 output_dim=num_classes,
@@ -682,8 +700,10 @@ class TinyMyo(nn.Module):
             param.div_(math.sqrt(2.0 * layer_id))
 
         for layer_id, layer in enumerate(self.blocks):
-            rescale(layer.attn.proj.weight.data, layer_id + 1)
-            rescale(layer.mlp.fc2.weight.data, layer_id + 1)
+            if hasattr(layer, "attn") and hasattr(layer.attn, "proj"):
+                rescale(layer.attn.proj.weight.data, layer_id + 1)
+            if hasattr(layer, "mlp") and hasattr(layer.mlp, "fc2"):
+                rescale(layer.mlp.fc2.weight.data, layer_id + 1)
 
     def forward(self, x, directly_input_tokens: bool = False):
         """

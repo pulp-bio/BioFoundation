@@ -16,6 +16,8 @@
 # *                                                                            *
 # * Author:  Matteo Fasulo                                                     *
 # *----------------------------------------------------------------------------*
+from typing import Optional
+
 import hydra
 import pytorch_lightning as pl
 import torch
@@ -44,7 +46,6 @@ class FinetuneTask(pl.LightningModule):
     - Classification types:
         - `bc`: Binary Classification
         - `ml`: Multi-Label Classification
-        - `mcc`: Multi-Class Classification
 
     - Metric logging during training, validation, and testing, including accuracy, precision, recall, F1 score, AUROC, and more
     - Optional input normalization with configurable normalization functions
@@ -66,18 +67,17 @@ class FinetuneTask(pl.LightningModule):
         self.num_classes = self.hparams.model.num_classes
         self.classification_type = self.hparams.model.classification_type
 
-        # Input normalization
+        # Enable normalization if specified in parameters
         self.normalize = False
-        if "input_normalization" in self.hparams:
-            if self.hparams.input_normalization.normalize:
-                self.normalize = True
-                self.normalize_fct = MinMaxNormalization()
+        if (
+            "input_normalization" in self.hparams
+            and self.hparams.input_normalization.normalize
+        ):
+            self.normalize = True
+            self.normalize_fct = MinMaxNormalization()
 
         # Loss function
-        if self.classification_type == "mcc":
-            self.criterion = nn.BCEWithLogitsLoss()
-        else:
-            self.criterion = nn.CrossEntropyLoss(label_smoothing=0.10)
+        self.criterion = nn.CrossEntropyLoss(label_smoothing=0.10)
 
         # Classification mode detection
         if not isinstance(self.num_classes, int):
@@ -175,7 +175,21 @@ class FinetuneTask(pl.LightningModule):
 
         print("Pretrained model ready.")
 
-    def _step(self, X):
+    def generate_fake_mask(self, batch_size, C, T):
+        """
+        Create a dummy mask tensor to simulate attention masking.
+
+        Args:
+            batch_size (int): Number of samples.
+            C (int): Number of channels.
+            T (int): Temporal dimension.
+
+        Returns:
+            torch.Tensor: Boolean mask tensor of shape (B, C, T).
+        """
+        return torch.zeros(batch_size, C, T, dtype=torch.bool).to(self.device)
+
+    def _step(self, X: torch.Tensor, mask: Optional[torch.Tensor] = None) -> dict:
         """
         Perform forward pass and post-process predictions.
 
@@ -185,18 +199,16 @@ class FinetuneTask(pl.LightningModule):
         Returns:
             dict: Dictionary containing predicted labels, probabilities, and logits.
         """
-        y_pred_logits, _ = self.model(X)
+        y_pred_logits, _ = self.model(X, mask=mask)
 
-        if self.classification_type in ("bc", "mcc", "ml"):
+        if self.classification_type in ("bc", "ml"):
             y_pred_probs = torch.softmax(y_pred_logits, dim=1)
             y_pred_label = torch.argmax(y_pred_probs, dim=1)
-        elif self.classification_type == "mc":
-            y_pred_probs = torch.sigmoid(y_pred_logits)
-            y_pred_label = torch.round(y_pred_probs)
-        elif self.classification_type == "mmc":
-            y_pred_logits = y_pred_logits.view(-1, 6)
-            y_pred_probs = torch.sigmoid(y_pred_logits)
-            y_pred_label = torch.argmax(y_pred_probs, dim=-1)
+
+        else:
+            raise NotImplementedError(
+                f"No valid classification type: {self.classification_type}"
+            )
 
         return {
             "label": y_pred_label,
@@ -208,17 +220,9 @@ class FinetuneTask(pl.LightningModule):
         X, y = batch
         if self.normalize:
             X = self.normalize_fct(X)
-
-        if self.classification_type == "mmc":
-            y = y.view(-1)
-            y_pred = self._step(X)
-            loss = self.criterion(y_pred["logits"], y)
-        elif self.classification_type == "mc":
-            y_pred = self._step(X)
-            loss = self.criterion(y_pred["logits"], y.float())
-        else:
-            y_pred = self._step(X)
-            loss = self.criterion(y_pred["logits"], y)
+        mask = self.generate_fake_mask(X.shape[0], X.shape[1], X.shape[2])
+        y_pred = self._step(X, mask=mask)
+        loss = self.criterion(y_pred["logits"], y)
 
         self.train_label_metrics(y_pred["label"], y)
         self.train_logit_metrics(self._handle_binary(y_pred["logits"]), y)
@@ -239,17 +243,9 @@ class FinetuneTask(pl.LightningModule):
         X, y = batch
         if self.normalize:
             X = self.normalize_fct(X)
-
-        if self.classification_type == "mmc":
-            y = y.view(-1)
-            y_pred = self._step(X)
-            loss = self.criterion(y_pred["logits"], y)
-        elif self.classification_type == "mc":
-            y_pred = self._step(X)
-            loss = self.criterion(y_pred["logits"], y.float())
-        else:
-            y_pred = self._step(X)
-            loss = self.criterion(y_pred["logits"], y)
+        mask = self.generate_fake_mask(X.shape[0], X.shape[1], X.shape[2])
+        y_pred = self._step(X, mask=mask)
+        loss = self.criterion(y_pred["logits"], y)
 
         self.val_label_metrics(y_pred["label"], y)
         self.val_logit_metrics(self._handle_binary(y_pred["logits"]), y)
@@ -262,17 +258,9 @@ class FinetuneTask(pl.LightningModule):
         X, y = batch
         if self.normalize:
             X = self.normalize_fct(X)
-
-        if self.classification_type == "mmc":
-            y = y.view(-1)
-            y_pred = self._step(X)
-            loss = self.criterion(y_pred["logits"], y)
-        elif self.classification_type == "mc":
-            y_pred = self._step(X)
-            loss = self.criterion(y_pred["logits"], y.float())
-        else:
-            y_pred = self._step(X)
-            loss = self.criterion(y_pred["logits"], y)
+        mask = self.generate_fake_mask(X.shape[0], X.shape[1], X.shape[2])
+        y_pred = self._step(X, mask=mask)
+        loss = self.criterion(y_pred["logits"], y)
 
         self.test_label_metrics(y_pred["label"], y)
         self.test_logit_metrics(self._handle_binary(y_pred["logits"]), y)

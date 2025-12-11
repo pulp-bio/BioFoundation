@@ -68,7 +68,7 @@ trainer:
   accelerator: gpu
   num_nodes: ${num_nodes}
   devices: ${gpus}
-  strategy: ddp_find_unused_parameters_true
+  strategy: auto
   max_epochs: ${max_epochs}
 
 model_checkpoint:

@@ -1,5 +1,5 @@
 import math
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -705,23 +705,37 @@ class TinyMyo(nn.Module):
             if hasattr(layer, "mlp") and hasattr(layer.mlp, "fc2"):
                 rescale(layer.mlp.fc2.weight.data, layer_id + 1)
 
-    def forward(self, x, directly_input_tokens: bool = False):
+    def prepare_tokens(
+        self, x_signal: torch.Tensor, mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """
-        Forward pass through the model.
-
+        Prepares input tokens by embedding patches and applying masking if provided.
         Args:
-            x (torch.Tensor): Input tensor. If directly_input_tokens is False, expected shape is (B, C, T) where B is batch size, C is channels, T is time steps. If True, expected shape is (B, N, D) where N is number of patches, D is embedding dimension.
-            directly_input_tokens (bool, optional): If True, skips patch embedding and assumes x is already tokenized. Defaults to False.
-
+            x_signal (torch.Tensor): Input signal tensor of shape (B, C, T).
+            mask (Optional[torch.Tensor]): Optional mask tensor of shape (B, C, T) indicating which patches to mask.
         Returns:
-            tuple: A tuple containing:
-                - If self.num_classes == 0 (reconstruction mode): (x_reconstructed, x_original) where x_reconstructed is the reconstructed output of shape (B, N, patch_size), and x_original is the original input.
-                - Otherwise (classification or regression mode): (x_out, x_original) where x_out is the model output of shape (B, Out), and x_original is the original input.
+            torch.Tensor: Prepared token embeddings of shape (B, N, D) where N is number of patches and D is embed_dim.
         """
-        # x_signal: (B, C, T)
-        x_original = x.clone()
-        if not directly_input_tokens:
-            x = self.patch_embedding(x)  # (B, N, D)
+        x_patched = self.patch_embedding(x_signal)  # [B, N, D]
+        x_masked = x_patched.clone()  # (B, N, D), N = C * num_patches_per_channel
+        if mask is not None:
+            mask_tokens = self.mask_token.repeat(
+                x_masked.shape[0], x_masked.shape[1], 1
+            )  # (B, N, D) N = C * num_patches_per_channel
+            mask = rearrange(
+                mask, "B C (S P) -> B (C S) P", P=self.patch_size
+            )  # (B, C, T) -> (B, N, P)
+            mask = (
+                (mask.sum(dim=-1) > 0).unsqueeze(-1).float()
+            )  # (B, N, 1), since a patch is either fully masked or not
+            x_masked = torch.where(mask.bool(), mask_tokens, x_masked)
+        return x_masked
+
+    def forward(
+        self, x_signal: torch.Tensor, mask: Optional[torch.BoolTensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        x_original = x_signal.clone()
+        x = self.prepare_tokens(x_signal, mask=mask)
 
         # forward pass through transformer blocks
         for blk in self.blocks:

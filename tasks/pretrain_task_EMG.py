@@ -22,7 +22,6 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch_optimizer as torch_optim
-from einops import rearrange
 from omegaconf import DictConfig
 
 from util.train_utils import MinMaxNormalization
@@ -44,92 +43,65 @@ class MaskTask(pl.LightningModule):
         self.patch_size = self.hparams.masking.patch_size
         self.masking_ratio = self.hparams.masking.masking_ratio
         self.unmasked_loss_coeff = self.hparams.masking.unmasked_loss_coeff
+
         # Enable normalization if specified in parameters
+        self.normalize = False
         if (
-            self.hparams.input_normalization is not None
+            "input_normalization" in self.hparams
             and self.hparams.input_normalization.normalize
         ):
             self.normalize = True
             self.normalize_fct = MinMaxNormalization()
 
-    def generate_token_mask_and_ids(
-        self,
-        batch_size: int,
-        C: int,
-        T: int,
-        patch_size: int,
-        mask_ratio: float,
-        device=None,
-    ):
+    def generate_mask(self, batch_size, C, T):
         """
-        Generate token-level mask.
+        Generate per-sample patch-level boolean masks (MAE-style).
 
         Returns:
-            ids_shuffle:    (B, N) LongTensor  -- indices used to shuffle tokens (argsort of noise)
-            ids_restore:    (B, N) LongTensor  -- indices to restore original ordering (argsort of ids_shuffle)
-            mask:           (B, N) BoolTensor  -- 1 indicates masked token
+            mask_full (torch.BoolTensor): Shape (B, C, T)
+                True = masked element
         """
-        device = torch.device(
-            "cuda"
-            if torch.cuda.is_available() and device is None
-            else (device or "cpu")
+        patch_H, patch_W = self.patch_size
+        num_patches_H = C // patch_H
+        num_patches_W = T // patch_W
+        N = num_patches_H * num_patches_W
+
+        # Number of patches to mask per sample
+        num_to_mask = int(N * self.masking_ratio)
+
+        # Generate patch-level mask (B, N) - vectorized
+        mask_patches = torch.zeros(batch_size, N, dtype=torch.bool, device=self.device)
+
+        for b in range(batch_size):
+            selected = torch.randperm(N, device=self.device)[:num_to_mask]
+            mask_patches[b, selected] = True
+
+        # unpatchify using reshape and repeat_interleave
+        # (B, N) -> (B, num_patches_H, num_patches_W)
+        mask_patches_2d = mask_patches.reshape(batch_size, num_patches_H, num_patches_W)
+
+        # Expand to full shape using repeat_interleave
+        # (B, num_patches_H, num_patches_W) -> (B, C, T)
+        mask_full = mask_patches_2d.repeat_interleave(patch_H, dim=1).repeat_interleave(
+            patch_W, dim=2
         )
 
-        # Number of tokens N = C * S where S = T // P
-        assert T % patch_size == 0, "T must be divisible by patch_size"
-        S = T // patch_size
-        N = C * S
+        return mask_full
 
-        B = batch_size
-        len_keep = int(N * (1.0 - mask_ratio))
-
-        noise = torch.rand(B, N, device=device)  # noise in [0,1)
-        ids_shuffle = torch.argsort(noise, dim=1)  # shape (B, N)
-        ids_restore = torch.argsort(ids_shuffle, dim=1)  # shape (B, N)
-
-        # build mask as in random_masking: first len_keep are kept (0), rest masked (1)
-        mask = torch.ones(B, N, device=device, dtype=torch.uint8)  # 1 = masked
-        mask[:, :len_keep] = 0
-        # unshuffle to place mask in original token order
-        mask = torch.gather(mask, dim=1, index=ids_restore)
-
-        # convert to bool for downstream usage
-        mask_bool = mask.bool()
-
-        return ids_shuffle, ids_restore, mask_bool
-
-    def token_mask_to_full_signal_mask(
-        self, token_mask: torch.Tensor, C: int, T: int, patch_size: int
-    ):
+    def unpatchify(self, x_patches: torch.Tensor, in_chans: int) -> torch.Tensor:
         """
-        token_mask: (B, N) bool where N == C * (T // patch_size)
-        returns: (B, C, T) bool
-        """
-        B, N = token_mask.shape
-        S = T // patch_size
-        assert N == C * S, f"token_mask N ({N}) != C*S ({C*S})"
-        # expand each token to its patch samples then rearrange
-        token_mask_expanded = token_mask.unsqueeze(-1).repeat(
-            1, 1, patch_size
-        )  # (B, N, P)
-        full_mask = rearrange(
-            token_mask_expanded, "b (c s) p -> b c (s p)", c=C, p=patch_size
-        )
-        return full_mask.bool()
+        Convert patch embeddings (B, N, P) back to waveform (B, C, T)
 
-    def unpatchify_to_signal(
-        self, pred_patches: torch.Tensor, C: int, T: int, patch_size: int
-    ):
+        Args:
+            x_patches: (B, N, P)
+            in_chans: number of channels C
+        Returns:
+            x_reconstructed: (B, C, T)
         """
-        pred_patches: (B, N, P) where N == C * (T // patch_size) and P == patch_size
-        returns: (B, C, T)
-        """
-        B, N, P = pred_patches.shape
-        S = T // patch_size
-        assert N == C * S, f"N ({N}) != C * (T//P) ({C}*{S})"
-        assert P == patch_size, f"P ({P}) != patch_size ({patch_size})"
-        # tokens are ordered as (C blocks of S patches): (B, (C S), P)
-        return rearrange(pred_patches, "b (c s) p -> b c (s p)", c=C)
+        B, N, P = x_patches.shape
+        num_patches_per_chan = N // in_chans
+        x_recon = x_patches.reshape(B, in_chans, num_patches_per_chan * P)
+        return x_recon
 
     def training_step(self, batch, batch_idx):
         """
@@ -143,49 +115,23 @@ class MaskTask(pl.LightningModule):
             torch.Tensor: Loss value.
         """
         X = batch
-        B, C, T = X.shape
+        mask = self.generate_mask(X.shape[0], X.shape[1], X.shape[2])
 
-        # Generate token-level mask and ids
-        ids_shuffle, ids_restore, token_mask = self.generate_token_mask_and_ids(
-            B, C, T, self.model.patch_size, self.masking_ratio, device=self.device
-        )  # token_mask: (B, N) bool (True == masked)
-
-        # normalize input if specified
         if self.normalize:
             X = self.normalize_fct(X)
 
-        # patchify to tokens/embeddings
-        x_tokens = self.model.patch_embedding(X)  # (B, N, D)
+        x_reconstructed, x_original = self.model(
+            X, mask=mask
+        )  # x_reconstructed: (B, N, P)
 
-        # build masked tokens by inserting mask token where token_mask == True
-        mask_token_expanded = self.model.mask_token.to(x_tokens.dtype).repeat(
-            B, x_tokens.shape[1], 1
-        )  # (B, N, D)
-        x_masked = torch.where(
-            token_mask.unsqueeze(-1), mask_token_expanded, x_tokens
-        )  # (B, N, D)
+        # unpatchify to original signal shape (B, C, T)
+        x_reconstructed_unpatched = self.unpatchify(
+            x_reconstructed, self.hparams.model.in_chans
+        )
 
-        # full forward pass (direct token input)
-        x_reconstructed, _ = self.model(x_masked, directly_input_tokens=True)
-
-        pred_unpatchified = self.unpatchify_to_signal(
-            x_reconstructed, C=C, T=T, patch_size=self.model.patch_size
-        )  # (B, C, T)
-
-        token_mask_full = self.token_mask_to_full_signal_mask(
-            token_mask, C=C, T=T, patch_size=self.model.patch_size
-        )  # (B, C, T)
-
-        assert (
-            pred_unpatchified.shape == X.shape
-        ), f"recon {pred_unpatchified.shape} vs orig {X.shape}"
-        assert (
-            token_mask_full.shape == X.shape
-        ), f"mask {token_mask_full.shape} vs orig {X.shape}"
-
-        # Compute loss only on masked parts
+        # Compute loss on masked parts and unmasked parts (with coefficient)
         masked_loss, unmasked_loss = self.criterion(
-            pred_unpatchified, X, token_mask_full
+            x_reconstructed_unpatched, x_original, mask
         )
         loss = masked_loss + self.unmasked_loss_coeff * unmasked_loss
 
@@ -211,49 +157,23 @@ class MaskTask(pl.LightningModule):
             torch.Tensor: Loss value.
         """
         X = batch
-        B, C, T = X.shape
+        mask = self.generate_mask(X.shape[0], X.shape[1], X.shape[2])
 
-        # Generate token-level mask and ids
-        ids_shuffle, ids_restore, token_mask = self.generate_token_mask_and_ids(
-            B, C, T, self.model.patch_size, self.masking_ratio, device=self.device
-        )  # token_mask: (B, N) bool (True == masked)
-
-        # normalize input if specified
         if self.normalize:
             X = self.normalize_fct(X)
 
-        # patchify to tokens/embeddings
-        x_tokens = self.model.patch_embedding(X)  # (B, N, D)
+        x_reconstructed, x_original = self.model(
+            X, mask=mask
+        )  # x_reconstructed: (B, N, P)
 
-        # build masked tokens by inserting mask token where token_mask == True
-        mask_token_expanded = self.model.mask_token.to(x_tokens.dtype).repeat(
-            B, x_tokens.shape[1], 1
-        )  # (B, N, D)
-        x_masked = torch.where(
-            token_mask.unsqueeze(-1), mask_token_expanded, x_tokens
-        )  # (B, N, D)
+        # unpatchify to original signal shape (B, C, T)
+        x_reconstructed_unpatched = self.unpatchify(
+            x_reconstructed, self.hparams.model.in_chans
+        )
 
-        # full forward pass (direct token input)
-        x_reconstructed, _ = self.model(x_masked, directly_input_tokens=True)
-
-        pred_unpatchified = self.unpatchify_to_signal(
-            x_reconstructed, C=C, T=T, patch_size=self.model.patch_size
-        )  # (B, C, T)
-
-        token_mask_full = self.token_mask_to_full_signal_mask(
-            token_mask, C=C, T=T, patch_size=self.model.patch_size
-        )  # (B, C, T)
-
-        assert (
-            pred_unpatchified.shape == X.shape
-        ), f"recon {pred_unpatchified.shape} vs orig {X.shape}"
-        assert (
-            token_mask_full.shape == X.shape
-        ), f"mask {token_mask_full.shape} vs orig {X.shape}"
-
-        # Compute loss only on masked parts
+        # Compute loss on masked parts and unmasked parts (with coefficient)
         masked_loss, unmasked_loss = self.criterion(
-            pred_unpatchified, X, token_mask_full
+            x_reconstructed_unpatched, x_original, mask
         )
         loss = masked_loss + self.unmasked_loss_coeff * unmasked_loss
 
@@ -261,7 +181,7 @@ class MaskTask(pl.LightningModule):
             "val_loss",
             loss,
             prog_bar=True,
-            on_step=True,
+            on_step=False,
             on_epoch=True,
             logger=True,
             sync_dist=True,
@@ -273,9 +193,9 @@ class MaskTask(pl.LightningModule):
         # Log signals with mask only for the first validation batch
         if batch_idx == 0:
             self.log_signals_with_mask(
-                original=X.cpu().float(),
-                reconstructed=pred_unpatchified.cpu().float(),
-                mask=token_mask_full.cpu(),
+                x_original.float(),
+                x_reconstructed_unpatched.float(),
+                mask,
                 batch_indices=random_indices,
                 indice_batch=batch_idx,
             )
@@ -294,34 +214,20 @@ class MaskTask(pl.LightningModule):
             )
         elif self.hparams.optimizer.optim == "Adam":
             optimizer = torch.optim.Adam(
-                self.model.parameters(), lr=self.hparams.optimizer.lr, weight_decay=0.01
+                self.model.parameters(),
+                lr=self.hparams.optimizer.lr,
+                weight_decay=self.hparams.optimizer.weight_decay,
             )
         elif self.hparams.optimizer.optim == "AdamW":
             optimizer = torch.optim.AdamW(
-                self.model.parameters(), lr=self.hparams.optimizer.lr
-            )
-        elif self.hparams.optimizer.optim == "AdamW_finetune":
-            # Fine-tuning with separate lr for linear_out layer
-            linear_out_params = (
-                self.model.linear_out.parameters()
-                if not self.hparams.multi_gpu
-                else self.model.module.linear_out.parameters()
-            )
-            ignored_params = list(map(id, linear_out_params))
-            base_params = filter(
-                lambda p: id(p) not in ignored_params, self.model.parameters()
-            )
-
-            optimizer = torch.optim.AdamW(
-                [
-                    {"params": base_params},
-                    {"params": linear_out_params, "lr": self.hparams.optimizer.lr},
-                ],
-                lr=self.hparams.optimizer.lr * 0.1,
+                self.model.parameters(),
+                lr=self.hparams.optimizer.lr,
+                weight_decay=self.hparams.optimizer.weight_decay,
             )
         elif self.hparams.optimizer.optim == "LAMB":
             optimizer = torch_optim.Lamb(
-                self.model.parameters(), lr=self.hparams.optimizer.lr
+                self.model.parameters(),
+                lr=self.hparams.optimizer.lr,
             )
         else:
             raise NotImplementedError("No valid optim name")

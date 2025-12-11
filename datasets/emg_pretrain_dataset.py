@@ -112,6 +112,11 @@ class EMGPretrainDataset(Dataset):
             X = torch.from_numpy(np_x).float()
 
             if self.use_cache:
+                # If cache is full, remove oldest item from dict AND queue
+                if len(self.cache) >= self.cache_size:
+                    oldest_index = self.cache_queue.popleft()
+                    del self.cache[oldest_index]
+
                 self.cache[index] = X
                 self.cache_queue.append(index)
 
@@ -124,9 +129,7 @@ class EMGPretrainDataset(Dataset):
             C = X.shape[0]
             to_pad = self.pad_up_to_max_chans - C
             if to_pad > 0:
-                X = X.T
-                X = F.pad(X, (0, to_pad))
-                X = X.T
+                X = F.pad(X, (0, 0, 0, to_pad))  # (channels, time) -> pad channels
 
         return X
 

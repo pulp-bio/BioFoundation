@@ -18,7 +18,7 @@
 #* Author:  Matteo Fasulo                                                     *
 #*----------------------------------------------------------------------------*
 model:
-  _target_: models.EMG.TinyMyo
+  _target_: models.TinyMyo.TinyMyo
   img_size: 1000
   patch_size: 20
   in_chans: 16

@@ -74,9 +74,7 @@ class EMGDataset(torch.utils.data.Dataset):
             self.num_samples = f["data"].shape[0]
 
         if self.use_cache:
-            self.cache: dict[
-                int, Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
-            ] = {}
+            self.cache: dict[int, Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]] = {}
             self.cache_queue = deque()
 
     def _open_file(self) -> None:

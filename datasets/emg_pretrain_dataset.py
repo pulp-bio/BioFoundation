@@ -75,11 +75,7 @@ class EMGPretrainDataset(Dataset):
         self.pad_up_to_max_chans = pad_up_to_max_chans
 
         # discover all .h5 files
-        self.file_paths = sorted(
-            os.path.join(data_dir, fn)
-            for fn in os.listdir(data_dir)
-            if fn.endswith(".h5")
-        )
+        self.file_paths = sorted(os.path.join(data_dir, fn) for fn in os.listdir(data_dir) if fn.endswith(".h5"))
         if not self.file_paths:
             raise RuntimeError(f"No .h5 files in {data_dir!r}")
 

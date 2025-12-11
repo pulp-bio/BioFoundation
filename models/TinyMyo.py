@@ -1,5 +1,6 @@
 import math
-from typing import Optional, Tuple
+from dataclasses import dataclass
+from typing import Literal, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -15,6 +16,7 @@ def trunc_normal_(tensor, mean=0.0, std=1.0):
 
 
 # https://docs.pytorch.org/torchtune/stable/_modules/torchtune/modules/position_embeddings.html#RotaryPositionalEmbeddings
+@dataclass(eq=False)
 class RotaryPositionalEmbeddings(nn.Module):
     """
     This class implements Rotary Positional Embeddings (RoPE)
@@ -36,31 +38,26 @@ class RotaryPositionalEmbeddings(nn.Module):
             the rotation angles
     """
 
-    def __init__(
-        self,
-        dim: int,
-        max_seq_len: int = 4096,
-        base: int = 10_000,
-    ) -> None:
+    dim: int
+    max_seq_len: int = 4096
+    base: int = 10_000
+
+    def __post_init__(self):
         super().__init__()
-        self.dim = dim
-        self.base = base
-        self.max_seq_len = max_seq_len
         self.rope_init()
 
     def rope_init(self):
-        theta: torch.Tensor = 1.0 / (
-            self.base
-            ** (torch.arange(0, self.dim, 2)[: (self.dim // 2)].float() / self.dim)
-        )
+        """Initialize the RoPE embeddings and cache."""
+        # ensure dim is int
+        dim = int(self.dim)
+        theta = 1.0 / (self.base ** (torch.arange(0, dim, 2, dtype=torch.float32)[: dim // 2] / dim))
         self.register_buffer("theta", theta, persistent=False)
         self.build_rope_cache(self.max_seq_len)
 
     def build_rope_cache(self, max_seq_len: int = 4096) -> None:
+        """Build the RoPE cache for positions up to max_seq_len."""
         # Create position indexes `[0, 1, ..., max_seq_len - 1]`
-        seq_idx = torch.arange(
-            max_seq_len, dtype=self.theta.dtype, device=self.theta.device
-        )
+        seq_idx = torch.arange(0, max_seq_len, dtype=torch.float32)  # type: ignore
 
         # Outer product of theta and position index; output tensor has
         # a shape of [max_seq_len, dim // 2]
@@ -68,12 +65,10 @@ class RotaryPositionalEmbeddings(nn.Module):
 
         # cache includes both the cos and sin components and so the output shape is
         # [max_seq_len, dim // 2, 2]
-        cache = torch.stack([torch.cos(idx_theta), torch.sin(idx_theta)], dim=-1)
+        cache: torch.Tensor = torch.stack([torch.cos(idx_theta), torch.sin(idx_theta)], dim=-1)
         self.register_buffer("cache", cache, persistent=False)
 
-    def forward(
-        self, x: torch.Tensor, *, input_pos: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, *, input_pos: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Args:
             x (torch.Tensor): input tensor with shape
@@ -97,9 +92,11 @@ class RotaryPositionalEmbeddings(nn.Module):
         seq_len = x.size(1)
 
         # extract the values based on whether input_pos is set or not
-        rope_cache = (
-            self.cache[:seq_len] if input_pos is None else self.cache[input_pos]
-        )
+        if input_pos is None:
+            rope_cache = self.cache[:seq_len]  # type: ignore
+        else:
+            input_pos = input_pos.to(torch.long)
+            rope_cache = self.cache[input_pos]  # type: ignore
 
         # reshape input; the last dimension is used for computing the output.
         # Cast to float to match the reference implementation
@@ -114,10 +111,8 @@ class RotaryPositionalEmbeddings(nn.Module):
         # tensor has shape [b, s, n_h, h_d // 2, 2]
         x_out = torch.stack(
             [
-                xshaped[..., 0] * rope_cache[..., 0]
-                - xshaped[..., 1] * rope_cache[..., 1],
-                xshaped[..., 1] * rope_cache[..., 0]
-                + xshaped[..., 0] * rope_cache[..., 1],
+                xshaped[..., 0] * rope_cache[..., 0] - xshaped[..., 1] * rope_cache[..., 1],
+                xshaped[..., 1] * rope_cache[..., 0] + xshaped[..., 0] * rope_cache[..., 1],
             ],
             -1,
         )
@@ -127,6 +122,7 @@ class RotaryPositionalEmbeddings(nn.Module):
         return x_out.type_as(x)
 
 
+@dataclass(eq=False)
 class PatchEmbedWaveformKeepChans(nn.Module):
     """
     Patch embedding layer for waveform data that keeps channel information.
@@ -142,22 +138,17 @@ class PatchEmbedWaveformKeepChans(nn.Module):
         embed_dim (int): Dimensionality of the embedding space.
     """
 
-    def __init__(
-        self,
-        img_size: int = 1000,
-        patch_size: int = 20,
-        in_chans: int = 16,
-        embed_dim: int = 192,
-    ):
+    img_size: int
+    patch_size: int
+    in_chans: int
+    embed_dim: int
+
+    def __post_init__(self):
         super().__init__()
-        self.img_size = img_size
-        self.patch_size = patch_size
-        self.in_chans = in_chans
-        self.embed_dim = embed_dim
         self.num_patches = (self.img_size // self.patch_size) * self.in_chans
         self.proj = nn.Conv2d(
             1,
-            embed_dim,
+            self.embed_dim,
             kernel_size=(1, self.patch_size),
             stride=(1, self.patch_size),
         )
@@ -175,20 +166,18 @@ class PatchEmbedWaveformKeepChans(nn.Module):
         return x
 
 
+@dataclass(eq=False)
 class PatchingModule(nn.Module):
     """Image to Patch Embedding of choice according to the parameters given."""
 
-    def __init__(
-        self,
-        img_size: int = 1000,
-        patch_size: int = 20,
-        in_chans: int = 16,
-        embed_dim: int = 192,
-    ):
+    img_size: int
+    patch_size: int
+    in_chans: int
+    embed_dim: int
+
+    def __post_init__(self):
         super().__init__()
-        self.patch_embed = PatchEmbedWaveformKeepChans(
-            img_size, patch_size, in_chans, embed_dim
-        )
+        self.patch_embed = PatchEmbedWaveformKeepChans(self.img_size, self.patch_size, self.in_chans, self.embed_dim)
         self.num_patches = self.patch_embed.num_patches
         self.init_patch_embed()
 
@@ -201,6 +190,7 @@ class PatchingModule(nn.Module):
         return self.patch_embed(x)
 
 
+@dataclass(eq=False)
 class RotarySelfAttentionBlock(nn.Module):
     """
     A self-attention block that incorporates rotary positional embeddings (RoPE) for enhanced positional awareness.
@@ -220,36 +210,31 @@ class RotarySelfAttentionBlock(nn.Module):
         proj_drop (nn.Dropout): Dropout layer for projection output.
     """
 
-    def __init__(
-        self,
-        dim: int,
-        num_heads: int = 8,
-        qkv_bias: bool = True,
-        attn_drop: float = 0.0,
-        proj_drop: float = 0.0,
-        **kwargs,
-    ):
+    dim: int
+    num_heads: int = 8
+    qkv_bias: bool = False
+    attn_drop: float = 0.0
+    proj_drop: float = 0.0
+
+    def __post_init__(self):
         super().__init__()
-        self.dim = dim
-        self.num_heads = num_heads
-        head_dim = dim // num_heads
+        head_dim = self.dim // self.num_heads
         self.rope = RotaryPositionalEmbeddings(
             dim=head_dim,
-            base=10_000,
             max_seq_len=1024,
+            base=10_000,
         )
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
-        self.attn_drop = attn_drop
-        self.attn_drop_fn = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim)
-        self.proj_drop = nn.Dropout(proj_drop)
+        self.qkv = nn.Linear(self.dim, self.dim * 3, bias=self.qkv_bias)
+        self.attn_drop = self.attn_drop
+        self.attn_drop_fn = nn.Dropout(self.attn_drop)
+        self.proj = nn.Linear(self.dim, self.dim)
+        self.p_drop = nn.Dropout(self.proj_drop)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass for rotary self-attention block."""
         B, N, C = x.shape
         qkv = (
-            self.qkv(x)
-            .reshape(B, N, 3, self.num_heads, C // self.num_heads)
-            .permute(2, 0, 3, 1, 4)
+            self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         )  # (K, B, H, N, D)
         q, k, v = qkv.unbind(0)  # each: (B, H, N, D)
 
@@ -268,16 +253,17 @@ class RotarySelfAttentionBlock(nn.Module):
 
         x = x.transpose(2, 1).reshape(B, N, C)
         x = self.proj(x)
-        x = self.proj_drop(x)
+        x = self.p_drop(x)
         return x
 
 
+@dataclass(eq=False)
 class RotaryTransformerBlock(nn.Module):
     """
     A transformer block that incorporates rotary self-attention for enhanced positional encoding.
 
     This block applies layer normalization, rotary self-attention, and a multi-layer perceptron (MLP)
-    in sequence, with optional drop paths for regularization. It follows a standard transformer
+    in sequence, with drop paths for regularization. It follows a standard transformer
     architecture but uses rotary embeddings to improve handling of sequential data.
 
     Args:
@@ -288,37 +274,35 @@ class RotaryTransformerBlock(nn.Module):
         drop (float, optional): Dropout rate for the MLP and attention projections. Defaults to 0.0.
         attn_drop (float, optional): Dropout rate specifically for the attention weights. Defaults to 0.0.
         drop_path (float, optional): Drop path rate for stochastic depth regularization. Defaults to 0.0.
-        norm_layer (nn.Module, optional): Normalization layer to use. Defaults to nn.LayerNorm.
     """
 
-    def __init__(
-        self,
-        dim: int,
-        num_heads: int,
-        mlp_ratio: float = 4.0,
-        qkv_bias: bool = False,
-        drop: float = 0.0,
-        attn_drop: float = 0.0,
-        drop_path: float = 0.0,
-        norm_layer=nn.LayerNorm,
-    ):
+    dim: int
+    num_heads: int
+    mlp_ratio: float = 4.0
+    qkv_bias: bool = False
+    drop: float = 0.0
+    attn_drop: float = 0.0
+    drop_path: float = 0.0
+    norm_layer = nn.LayerNorm
+
+    def __post_init__(self):
         super().__init__()
-        self.norm1 = norm_layer(dim)
+        self.norm1 = self.norm_layer(self.dim)
         self.attn = RotarySelfAttentionBlock(
-            dim=dim,
-            num_heads=num_heads,
-            qkv_bias=qkv_bias,
-            attn_drop=attn_drop,
-            proj_drop=drop,
+            dim=self.dim,
+            num_heads=self.num_heads,
+            qkv_bias=self.qkv_bias,
+            attn_drop=self.attn_drop,
+            proj_drop=self.drop,
         )
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        self.norm2 = norm_layer(dim)
+        self.drop_path1 = DropPath(self.drop_path) if self.drop_path > 0.0 else nn.Identity()
+        self.drop_path2 = DropPath(self.drop_path) if self.drop_path > 0.0 else nn.Identity()
+        self.norm2 = self.norm_layer(self.dim)
         self.mlp = Mlp(
-            in_features=dim,
-            hidden_features=int(dim * mlp_ratio),
+            in_features=self.dim,
+            hidden_features=int(self.dim * self.mlp_ratio),
             act_layer=nn.GELU,
-            drop=drop,
+            drop=self.drop,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -327,6 +311,7 @@ class RotaryTransformerBlock(nn.Module):
         return x
 
 
+@dataclass(eq=False)
 class PatchReconstructionHead(nn.Module):
     """
     A neural network module for reconstructing image patches from token embeddings.
@@ -335,10 +320,10 @@ class PatchReconstructionHead(nn.Module):
     for patch reconstruction. It is designed for use in vision transformer models where
     patches are embedded and then reconstructed.
 
-        img_size (int, optional): The size of the input image. Defaults to 1000.
-        patch_size (int, optional): The size of each patch. Defaults to 20.
-        in_chans (int, optional): Number of input channels. Defaults to 16.
-        embed_dim (int, optional): Dimensionality of the embedding space. Defaults to 192.
+        img_size (int): The size of the input image.
+        patch_size (int): The size of each patch.
+        in_chans (int): Number of input channels.
+        embed_dim (int): Dimensionality of the embedding space.
 
     Attributes:
         in_chans (int): Number of input channels.
@@ -349,25 +334,17 @@ class PatchReconstructionHead(nn.Module):
         decoder_pred (nn.Linear): Linear layer for projecting embeddings to pixel space.
     """
 
-    def __init__(
-        self,
-        img_size: int = 1000,
-        patch_size: int = 20,
-        in_chans: int = 16,
-        embed_dim: int = 192,
-    ):
-        super().__init__()
-        self.in_chans = in_chans
-        self.img_size = img_size
-        self.patch_size = patch_size
-        self.embed_dim = embed_dim
+    img_size: int
+    patch_size: int
+    in_chans: int
+    embed_dim: int
 
+    def __post_init__(self):
+        super().__init__()
         self.reconstruction_shape = self.patch_size
 
         # Projection from embed space to pixel space
-        self.decoder_pred = nn.Linear(
-            self.embed_dim, self.reconstruction_shape, bias=True
-        )
+        self.decoder_pred = nn.Linear(self.embed_dim, self.reconstruction_shape)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -379,6 +356,7 @@ class PatchReconstructionHead(nn.Module):
         return x
 
 
+@dataclass(eq=False)
 class EMGClassificationHead(nn.Module):
     """
     A classification head for EMG (Electromyography) data processing, designed to classify token embeddings into a specified number of classes.
@@ -386,34 +364,28 @@ class EMGClassificationHead(nn.Module):
     This module takes token embeddings as input, applies a reduction strategy (either mean or concatenation across channels),
     averages across patches, and then uses a linear classifier to produce logits for classification.
 
-        embed_dim (int, optional): Dimensionality of the token embeddings. Defaults to 192.
-        num_classes (int, optional): Number of output classes for classification. Defaults to 53.
-        reduction (str, optional): Reduction strategy for combining channel features. Options are "mean" or "concat".
+        embed_dim (int): Dimensionality of the token embeddings.
+        num_classes (int): Number of output classes for classification.
+        in_chans (int): Number of input channels (e.g., EMG channels).
+        reduction (str): Reduction strategy for combining channel features. Options are "mean" or "concat".
             - "mean": Averages across channels, resulting in feature dimension of embed_dim.
             - "concat": Concatenates across channels, resulting in feature dimension of in_chans * embed_dim. Defaults to "concat".
-        in_chans (int, optional): Number of input channels (e.g., EMG channels). Defaults to 16.
 
     Attributes:
         classifier (nn.Linear): Linear layer for final classification, mapping from reduced feature dimension to num_classes.
     """
 
-    def __init__(
-        self,
-        embed_dim: int = 192,
-        num_classes: int = 53,
-        reduction: str = "concat",
-        in_chans: int = 16,
-    ):
+    embed_dim: int
+    num_classes: int
+    in_chans: int
+    reduction: Literal["mean", "concat"] = "concat"
+
+    def __post_init__(self):
         super().__init__()
-        self.embed_dim = embed_dim
-        self.num_classes = num_classes
-        self.reduction = reduction
-        self.in_chans = in_chans
-
         # after reduction, feature_dim to either embed_dim or in_chans*embed_dim
-        feat_dim = embed_dim if reduction == "mean" else in_chans * embed_dim
+        feat_dim = self.embed_dim if self.reduction == "mean" else self.in_chans * self.embed_dim
 
-        self.classifier = nn.Linear(feat_dim, num_classes)
+        self.classifier = nn.Linear(feat_dim, self.num_classes)
 
         # init weights
         self.apply(self._init_weights)
@@ -442,6 +414,8 @@ class EMGClassificationHead(nn.Module):
         elif self.reduction == "concat":
             # Reshape to (B, num_patches, embed_dim * in_chans)
             x = rearrange(x, "b (c p) d -> b p (c d)", c=self.in_chans, p=num_patches)
+        else:
+            raise ValueError(f"Unknown reduction type: {self.reduction}")
 
         # average across patches
         x = x.mean(dim=1)  # (B, feat_dim)
@@ -451,6 +425,7 @@ class EMGClassificationHead(nn.Module):
         return logits
 
 
+@dataclass(eq=False)
 class EMGRegressionHead(nn.Module):
     """
     A regression head for EMG (Electromyography) signals using convolutional layers.
@@ -458,17 +433,17 @@ class EMGRegressionHead(nn.Module):
     This module processes embedded features from a transformer model to perform
     regression, predicting output signals of a specified dimension and length. It supports
     different reduction methods for combining channel and patch features, followed by
-    convolutional layers for regression, and optional upsampling to a target sequence length.
+    convolutional layers for regression, and upsampling to a target sequence length.
 
     Args:
         in_chans (int): Number of input channels (e.g., EMG channels).
         embed_dim (int): Dimension of the input embeddings.
         output_dim (int): Dimension of the output regression targets.
-        reduction (str, optional): Method to reduce features across channels.
+        reduction (str): Method to reduce features across channels.
             "mean" averages embeddings, "concat" concatenates them. Defaults to "concat".
-        hidden_dim (int, optional): Hidden dimension for the convolutional layers. Defaults to 256.
-        dropout (float, optional): Dropout probability applied after the first convolution. Defaults to 0.1.
-        target_length (int, optional): Desired length of the output sequence. If the input length differs,
+        hidden_dim (int): Hidden dimension for the convolutional layers. Defaults to 256.
+        dropout (float): Dropout probability applied after the first convolution. Defaults to 0.1.
+        target_length (int): Desired length of the output sequence. If the input length differs,
             linear interpolation is used to upsample. Defaults to 500.
 
     Attributes:
@@ -480,37 +455,33 @@ class EMGRegressionHead(nn.Module):
         target_length (int): Target output sequence length.
     """
 
-    def __init__(
-        self,
-        in_chans: int,
-        embed_dim: int,
-        output_dim: int,
-        reduction: str = "concat",
-        hidden_dim: int = 256,
-        dropout: float = 0.1,
-        target_length: int = 500,
-    ):
-        super().__init__()
-        self.in_chans = in_chans
-        self.embed_dim = embed_dim
-        self.output_dim = output_dim
-        self.reduction = reduction
-        self.dropout = dropout
-        self.target_length = target_length
+    in_chans: int
+    embed_dim: int
+    output_dim: int
+    reduction: Literal["mean", "concat"] = "concat"
+    hidden_dim: int = 256
+    dropout: float = 0.1
+    target_length: int = 500
 
-        feat_dim = embed_dim if reduction == "mean" else in_chans * embed_dim
+    def __post_init__(self):
+        super().__init__()
+        feat_dim = self.embed_dim if self.reduction == "mean" else self.in_chans * self.embed_dim
 
         self.regressor = nn.Sequential(
-            nn.Conv1d(feat_dim, hidden_dim, kernel_size=1),
+            nn.Conv1d(feat_dim, self.hidden_dim, kernel_size=1),
             nn.SiLU(),
-            nn.Dropout(dropout),
+            nn.Dropout(self.dropout),
             # depthwise 3x3 conv: groups=hidden_dim to hidden_dimx3 params
             nn.Conv1d(
-                hidden_dim, hidden_dim, kernel_size=3, padding=1, groups=hidden_dim
+                self.hidden_dim,
+                self.hidden_dim,
+                kernel_size=3,
+                padding=1,
+                groups=self.hidden_dim,
             ),
             nn.SiLU(),
             # pointwise 1x1 back to output_dim
-            nn.Conv1d(hidden_dim, output_dim, kernel_size=1),
+            nn.Conv1d(self.hidden_dim, self.output_dim, kernel_size=1),
         )
 
         # Initialize weights
@@ -537,8 +508,10 @@ class EMGRegressionHead(nn.Module):
         # x: (B, num_tokens, token_dim)
         if self.reduction == "mean":
             x = rearrange(x, "b (c p) d -> b p d", c=self.in_chans)
-        else:  # concat
+        elif self.reduction == "concat":
             x = rearrange(x, "b (c p) d -> b p (c d)", c=self.in_chans)
+        else:
+            raise ValueError(f"Unknown reduction type: {self.reduction}")
 
         # conv head expects (B, C, L)
         x = x.transpose(1, 2)  # (B, feat_dim, num_patches)
@@ -546,15 +519,14 @@ class EMGRegressionHead(nn.Module):
 
         # now upsample to target length
         if x.size(-1) != self.target_length:
-            x = F.interpolate(
-                x, size=self.target_length, mode="linear", align_corners=False
-            )
+            x = F.interpolate(x, size=self.target_length, mode="linear", align_corners=False)
 
         # x: (B, output_dim, target_length)
         out = x.transpose(1, 2)  # (B, target_length, output_dim)
         return out
 
 
+@dataclass(eq=False)
 class TinyMyo(nn.Module):
     """
     TinyMyo is a bidirectional Transformer model based on the Vision Transformer (ViT) architecture, adapted for electromyography (EMG) signal processing.
@@ -578,92 +550,78 @@ class TinyMyo(nn.Module):
         norm_layer (nn.Module, optional): Normalization layer class. Defaults to nn.LayerNorm.
         task (str, optional): Task type, one of "pretraining", "classification", or "regression". Defaults to "classification".
         classification_type (str, optional): Type of classification (e.g., "ml" for multi-label). Defaults to "ml".
+        reduction_type (str, optional): Type of reduction to apply, either "mean" or "concat". Defaults to "concat".
         num_classes (int, optional): Number of classes for classification or output dimension for regression. Defaults to 53.
         reg_target_len (int, optional): Target length for regression output. Defaults to 500.
     """
 
-    def __init__(
-        self,
-        img_size: int = 1000,
-        patch_size: int = 20,
-        in_chans: int = 16,
-        embed_dim: int = 192,
-        n_layer: int = 8,
-        n_head: int = 3,
-        mlp_ratio: int = 4,
-        qkv_bias: bool = True,
-        attn_drop: float = 0.1,
-        proj_drop: float = 0.1,
-        drop_path: float = 0.1,
-        norm_layer=nn.LayerNorm,
-        task: str = "classification",
-        classification_type: str = "ml",
-        num_classes: int = 53,
-        reg_target_len: int = 500,
-    ):
+    img_size: int = 1000
+    patch_size: int = 20
+    in_chans: int = 16
+    embed_dim: int = 192
+    n_layer: int = 8
+    n_head: int = 3
+    mlp_ratio: int = 4
+    qkv_bias: bool = True
+    attn_drop: float = 0.1
+    proj_drop: float = 0.1
+    drop_path: float = 0.1
+    norm_layer = nn.LayerNorm
+    task: Literal["pretraining", "classification", "regression"] = "classification"
+    classification_type: Literal["ml", "mc"] = "ml"
+    reduction_type: Literal["concat", "mean"] = "concat"
+    num_classes: int = 53
+    reg_target_len: int = 500
+
+    def __post_init__(self):
         super().__init__()
-
-        # MAE encoder
-        self.img_size = img_size
-        self.patch_size = patch_size
-        self.in_chans = in_chans
-        self.n_layer = n_layer
-        self.n_head = n_head
-        self.embed_dim = embed_dim
-        self.task = task
-        self.classification_type = classification_type
-        self.num_classes = num_classes
-
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
 
         self.patch_embedding = PatchingModule(
-            img_size=img_size,
-            patch_size=patch_size,
-            in_chans=in_chans,
-            embed_dim=embed_dim,
+            img_size=self.img_size,
+            patch_size=self.patch_size,
+            in_chans=self.in_chans,
+            embed_dim=self.embed_dim,
         )
         self.num_patches = self.patch_embedding.num_patches
 
         self.blocks = nn.ModuleList(
             [
                 RotaryTransformerBlock(
-                    dim=embed_dim,
-                    num_heads=n_head,
-                    mlp_ratio=mlp_ratio,
-                    qkv_bias=qkv_bias,
-                    attn_drop=attn_drop,
-                    drop=proj_drop,
-                    drop_path=drop_path,
-                    norm_layer=norm_layer,
+                    dim=self.embed_dim,
+                    num_heads=self.n_head,
+                    mlp_ratio=self.mlp_ratio,
+                    qkv_bias=self.qkv_bias,
+                    drop=self.proj_drop,
+                    attn_drop=self.attn_drop,
+                    drop_path=self.drop_path,
                 )
-                for _ in range(n_layer)
+                for _ in range(self.n_layer)
             ]
         )
-        self.norm = norm_layer(embed_dim)
+        self.norm = self.norm_layer(self.embed_dim)
 
-        if (
-            self.task == "pretraining" or num_classes == 0
-        ):  # reconstruction (pre-training)
-            self.model_head: nn.Module = PatchReconstructionHead(
-                img_size=img_size,
-                patch_size=patch_size,
-                in_chans=in_chans,
-                embed_dim=embed_dim,
+        if self.task == "pretraining" or self.num_classes == 0:  # reconstruction (pre-training)
+            self.model_head = PatchReconstructionHead(
+                img_size=self.img_size,
+                patch_size=self.patch_size,
+                in_chans=self.in_chans,
+                embed_dim=self.embed_dim,
             )
-        elif self.task == "classification" and num_classes > 0:
-            self.model_head: nn.Module = EMGClassificationHead(
-                embed_dim=embed_dim,
-                num_classes=num_classes,
-                reduction="concat",
-                in_chans=in_chans,
+        elif self.task == "classification" and self.num_classes > 0:
+            self.model_head = EMGClassificationHead(
+                embed_dim=self.embed_dim,
+                num_classes=self.num_classes,
+                in_chans=self.in_chans,
+                reduction=self.reduction_type,
             )
         elif self.task == "regression":
-            self.model_head: nn.Module = EMGRegressionHead(
-                in_chans=in_chans,
-                embed_dim=embed_dim,
-                output_dim=num_classes,
-                reduction="concat",
-                target_length=reg_target_len,
+            self.model_head = EMGRegressionHead(
+                in_chans=self.in_chans,
+                embed_dim=self.embed_dim,
+                output_dim=self.num_classes,
+                reduction=self.reduction_type,
+                target_length=self.reg_target_len,
             )
         else:
             raise ValueError(f"Unknown task type {self.task}")
@@ -671,8 +629,8 @@ class TinyMyo(nn.Module):
 
         # Some checks
         assert (
-            img_size % patch_size == 0
-        ), f"img_size ({img_size}) must be divisible by patch_size ({patch_size})"
+            self.img_size % self.patch_size == 0
+        ), f"img_size ({self.img_size}) must be divisible by patch_size ({self.patch_size})"
 
     def initialize_weights(self):
         """Initializes the model weights."""
@@ -694,20 +652,25 @@ class TinyMyo(nn.Module):
             nn.init.constant_(m.weight, 1.0)
 
     def fix_init_weight(self):
-        """Rescales the weights of attention and MLP layers to improve training stability."""
+        """
+        Rescales the weights of attention and MLP layers to improve training stability.
+
+        For each layer, weights are divided by sqrt(2 * layer_id).
+        """
 
         def rescale(param, layer_id):
             param.div_(math.sqrt(2.0 * layer_id))
 
-        for layer_id, layer in enumerate(self.blocks):
-            if hasattr(layer, "attn") and hasattr(layer.attn, "proj"):
-                rescale(layer.attn.proj.weight.data, layer_id + 1)
-            if hasattr(layer, "mlp") and hasattr(layer.mlp, "fc2"):
-                rescale(layer.mlp.fc2.weight.data, layer_id + 1)
+        for layer_id, layer in enumerate(self.blocks, start=1):
+            attn_proj = getattr(getattr(layer, "attn", None), "proj", None)
+            if attn_proj is not None:
+                rescale(attn_proj.weight.data, layer_id)
 
-    def prepare_tokens(
-        self, x_signal: torch.Tensor, mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+            mlp_fc2 = getattr(getattr(layer, "mlp", None), "fc2", None)
+            if mlp_fc2 is not None:
+                rescale(mlp_fc2.weight.data, layer_id)
+
+    def prepare_tokens(self, x_signal: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Prepares input tokens by embedding patches and applying masking if provided.
         Args:
@@ -722,9 +685,7 @@ class TinyMyo(nn.Module):
             mask_tokens = self.mask_token.repeat(
                 x_masked.shape[0], x_masked.shape[1], 1
             )  # (B, N, D) N = C * num_patches_per_channel
-            mask = rearrange(
-                mask, "B C (S P) -> B (C S) P", P=self.patch_size
-            )  # (B, C, T) -> (B, N, P)
+            mask = rearrange(mask, "B C (S P) -> B (C S) P", P=self.patch_size)  # (B, C, T) -> (B, N, P)
             mask = (
                 (mask.sum(dim=-1) > 0).unsqueeze(-1).float()
             )  # (B, N, 1), since a patch is either fully masked or not
@@ -734,6 +695,26 @@ class TinyMyo(nn.Module):
     def forward(
         self, x_signal: torch.Tensor, mask: Optional[torch.BoolTensor] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass of the TinyMyo model.
+
+        This method processes the input signal tensor through the transformer blocks,
+        applies normalization, and then either reconstructs the signal or performs
+        classification/regression based on the model's configuration.
+
+        Args:
+            x_signal (torch.Tensor): The input signal tensor of shape [B, C, T],
+                where B is batch size, C is number of channels, and T is the temporal dimension.
+            mask (Optional[torch.BoolTensor]): Optional boolean mask tensor for
+                masking certain tokens during processing. If None, no masking is applied.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: A tuple containing:
+                - If num_classes == 0 (reconstruction mode): The reconstructed signal
+                  tensor of shape [B, N, patch_size] and the original input signal tensor.
+                - Otherwise (classification/regression mode): The output tensor of shape
+                  [B, Out] and the original input signal tensor.
+        """
         x_original = x_signal.clone()
         x = self.prepare_tokens(x_signal, mask=mask)
 

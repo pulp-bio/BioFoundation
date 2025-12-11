@@ -69,10 +69,7 @@ class FinetuneTask(pl.LightningModule):
 
         # Enable normalization if specified in parameters
         self.normalize = False
-        if (
-            "input_normalization" in self.hparams
-            and self.hparams.input_normalization.normalize
-        ):
+        if "input_normalization" in self.hparams and self.hparams.input_normalization.normalize:
             self.normalize = True
             self.normalize_fct = MinMaxNormalization()
 
@@ -102,9 +99,7 @@ class FinetuneTask(pl.LightningModule):
                     num_classes=self.num_classes,
                     average="macro",
                 ),
-                "recall": Recall(
-                    task="multiclass", num_classes=self.num_classes, average="macro"
-                ),
+                "recall": Recall(task="multiclass", num_classes=self.num_classes, average="macro"),
                 "precision": Precision(
                     task=self.classification_task,
                     num_classes=self.num_classes,
@@ -115,9 +110,7 @@ class FinetuneTask(pl.LightningModule):
                     num_classes=self.num_classes,
                     average="macro",
                 ),
-                "cohen_kappa": CohenKappa(
-                    task=self.classification_task, num_classes=self.num_classes
-                ),
+                "cohen_kappa": CohenKappa(task=self.classification_task, num_classes=self.num_classes),
             }
         )
         logit_metrics = MetricCollection(
@@ -206,9 +199,7 @@ class FinetuneTask(pl.LightningModule):
             y_pred_label = torch.argmax(y_pred_probs, dim=1)
 
         else:
-            raise NotImplementedError(
-                f"No valid classification type: {self.classification_type}"
-            )
+            raise NotImplementedError(f"No valid classification type: {self.classification_type}")
 
         return {
             "label": y_pred_label,
@@ -295,9 +286,7 @@ class FinetuneTask(pl.LightningModule):
             params_to_pass.append({"params": param, "lr": lr})
 
         if self.hparams.optimizer.optim == "SGD":
-            optimizer = torch.optim.SGD(
-                params_to_pass, lr=base_lr, momentum=self.hparams.optimizer.momentum
-            )
+            optimizer = torch.optim.SGD(params_to_pass, lr=base_lr, momentum=self.hparams.optimizer.momentum)
         elif self.hparams.optimizer.optim == "Adam":
             optimizer = torch.optim.Adam(
                 params_to_pass,
@@ -317,9 +306,7 @@ class FinetuneTask(pl.LightningModule):
             raise NotImplementedError("No valid optimizer name")
 
         if self.hparams.scheduler_type == "multi_step_lr":
-            scheduler = hydra.utils.instantiate(
-                self.hparams.scheduler, optimizer=optimizer
-            )
+            scheduler = hydra.utils.instantiate(self.hparams.scheduler, optimizer=optimizer)
         else:
             scheduler = hydra.utils.instantiate(
                 self.hparams.scheduler,

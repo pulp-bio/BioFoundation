@@ -46,10 +46,7 @@ class MaskTask(pl.LightningModule):
 
         # Enable normalization if specified in parameters
         self.normalize = False
-        if (
-            "input_normalization" in self.hparams
-            and self.hparams.input_normalization.normalize
-        ):
+        if "input_normalization" in self.hparams and self.hparams.input_normalization.normalize:
             self.normalize = True
             self.normalize_fct = MinMaxNormalization()
 
@@ -82,9 +79,7 @@ class MaskTask(pl.LightningModule):
 
         # Expand to full shape using repeat_interleave
         # (B, num_patches_H, num_patches_W) -> (B, C, T)
-        mask_full = mask_patches_2d.repeat_interleave(patch_H, dim=1).repeat_interleave(
-            patch_W, dim=2
-        )
+        mask_full = mask_patches_2d.repeat_interleave(patch_H, dim=1).repeat_interleave(patch_W, dim=2)
 
         return mask_full
 
@@ -120,19 +115,13 @@ class MaskTask(pl.LightningModule):
         if self.normalize:
             X = self.normalize_fct(X)
 
-        x_reconstructed, x_original = self.model(
-            X, mask=mask
-        )  # x_reconstructed: (B, N, P)
+        x_reconstructed, x_original = self.model(X, mask=mask)  # x_reconstructed: (B, N, P)
 
         # unpatchify to original signal shape (B, C, T)
-        x_reconstructed_unpatched = self.unpatchify(
-            x_reconstructed, self.hparams.model.in_chans
-        )
+        x_reconstructed_unpatched = self.unpatchify(x_reconstructed, self.hparams.model.in_chans)
 
         # Compute loss on masked parts and unmasked parts (with coefficient)
-        masked_loss, unmasked_loss = self.criterion(
-            x_reconstructed_unpatched, x_original, mask
-        )
+        masked_loss, unmasked_loss = self.criterion(x_reconstructed_unpatched, x_original, mask)
         loss = masked_loss + self.unmasked_loss_coeff * unmasked_loss
 
         self.log(
@@ -162,19 +151,13 @@ class MaskTask(pl.LightningModule):
         if self.normalize:
             X = self.normalize_fct(X)
 
-        x_reconstructed, x_original = self.model(
-            X, mask=mask
-        )  # x_reconstructed: (B, N, P)
+        x_reconstructed, x_original = self.model(X, mask=mask)  # x_reconstructed: (B, N, P)
 
         # unpatchify to original signal shape (B, C, T)
-        x_reconstructed_unpatched = self.unpatchify(
-            x_reconstructed, self.hparams.model.in_chans
-        )
+        x_reconstructed_unpatched = self.unpatchify(x_reconstructed, self.hparams.model.in_chans)
 
         # Compute loss on masked parts and unmasked parts (with coefficient)
-        masked_loss, unmasked_loss = self.criterion(
-            x_reconstructed_unpatched, x_original, mask
-        )
+        masked_loss, unmasked_loss = self.criterion(x_reconstructed_unpatched, x_original, mask)
         loss = masked_loss + self.unmasked_loss_coeff * unmasked_loss
 
         self.log(
@@ -209,9 +192,7 @@ class MaskTask(pl.LightningModule):
             dict: Dictionary with optimizer and scheduler for PyTorch Lightning.
         """
         if self.hparams.optimizer.optim == "SGD":
-            optimizer = torch.optim.SGD(
-                self.model.parameters(), lr=self.hparams.optimizer.lr, momentum=0.9
-            )
+            optimizer = torch.optim.SGD(self.model.parameters(), lr=self.hparams.optimizer.lr, momentum=0.9)
         elif self.hparams.optimizer.optim == "Adam":
             optimizer = torch.optim.Adam(
                 self.model.parameters(),
@@ -245,9 +226,7 @@ class MaskTask(pl.LightningModule):
     def lr_scheduler_step(self, scheduler, metric):
         scheduler.step(epoch=self.current_epoch)
 
-    def log_signals_with_mask(
-        self, original, reconstructed, mask=None, batch_indices=None, indice_batch=None
-    ):
+    def log_signals_with_mask(self, original, reconstructed, mask=None, batch_indices=None, indice_batch=None):
         """
         Log original and reconstructed signals highlighting masked regions.
 

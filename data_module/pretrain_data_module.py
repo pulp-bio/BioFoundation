@@ -21,7 +21,7 @@ from typing import Optional
 
 import pytorch_lightning as pl
 import torch
-from torch.utils.data import ConcatDataset, DataLoader, Dataset
+from torch.utils.data import ConcatDataset, DataLoader
 
 
 class PretrainDataModule(pl.LightningDataModule):

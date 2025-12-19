@@ -162,7 +162,7 @@ class FinetuneTask(pl.LightningModule):
 
         for name, param in self.model.named_parameters():
             if self.hparams.finetuning.freeze_layers:
-                param.requires_grad = True
+                param.requires_grad = False
             if "model_head" in name:
                 param.requires_grad = True
 

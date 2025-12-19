@@ -22,7 +22,7 @@ class RotaryPositionalEmbeddings(nn.Module):
     This class implements Rotary Positional Embeddings (RoPE)
     proposed in https://arxiv.org/abs/2104.09864.
 
-    Reference implementation (used for correctness verfication)
+    Reference implementation (used for correctness verification)
     can be found here:
     https://github.com/meta-llama/llama/blob/main/llama/model.py#L80
 
@@ -50,7 +50,10 @@ class RotaryPositionalEmbeddings(nn.Module):
         """Initialize the RoPE embeddings and cache."""
         # ensure dim is int
         dim = int(self.dim)
-        theta = 1.0 / (self.base ** (torch.arange(0, dim, 2, dtype=torch.float32)[: dim // 2] / dim))
+        theta = 1.0 / (
+            self.base
+            ** (torch.arange(0, dim, 2, dtype=torch.float32)[: dim // 2] / dim)
+        )
         self.register_buffer("theta", theta, persistent=False)
         self.build_rope_cache(self.max_seq_len)
 
@@ -65,10 +68,14 @@ class RotaryPositionalEmbeddings(nn.Module):
 
         # cache includes both the cos and sin components and so the output shape is
         # [max_seq_len, dim // 2, 2]
-        cache: torch.Tensor = torch.stack([torch.cos(idx_theta), torch.sin(idx_theta)], dim=-1)
+        cache: torch.Tensor = torch.stack(
+            [torch.cos(idx_theta), torch.sin(idx_theta)], dim=-1
+        )
         self.register_buffer("cache", cache, persistent=False)
 
-    def forward(self, x: torch.Tensor, *, input_pos: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, *, input_pos: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """
         Args:
             x (torch.Tensor): input tensor with shape
@@ -111,8 +118,10 @@ class RotaryPositionalEmbeddings(nn.Module):
         # tensor has shape [b, s, n_h, h_d // 2, 2]
         x_out = torch.stack(
             [
-                xshaped[..., 0] * rope_cache[..., 0] - xshaped[..., 1] * rope_cache[..., 1],
-                xshaped[..., 1] * rope_cache[..., 0] + xshaped[..., 0] * rope_cache[..., 1],
+                xshaped[..., 0] * rope_cache[..., 0]
+                - xshaped[..., 1] * rope_cache[..., 1],
+                xshaped[..., 1] * rope_cache[..., 0]
+                + xshaped[..., 0] * rope_cache[..., 1],
             ],
             -1,
         )
@@ -177,7 +186,9 @@ class PatchingModule(nn.Module):
 
     def __post_init__(self):
         super().__init__()
-        self.patch_embed = PatchEmbedWaveformKeepChans(self.img_size, self.patch_size, self.in_chans, self.embed_dim)
+        self.patch_embed = PatchEmbedWaveformKeepChans(
+            self.img_size, self.patch_size, self.in_chans, self.embed_dim
+        )
         self.num_patches = self.patch_embed.num_patches
         self.init_patch_embed()
 
@@ -225,7 +236,6 @@ class RotarySelfAttentionBlock(nn.Module):
             base=10_000,
         )
         self.qkv = nn.Linear(self.dim, self.dim * 3, bias=self.qkv_bias)
-        self.attn_drop = self.attn_drop
         self.attn_drop_fn = nn.Dropout(self.attn_drop)
         self.proj = nn.Linear(self.dim, self.dim)
         self.p_drop = nn.Dropout(self.proj_drop)
@@ -234,7 +244,9 @@ class RotarySelfAttentionBlock(nn.Module):
         """Forward pass for rotary self-attention block."""
         B, N, C = x.shape
         qkv = (
-            self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+            self.qkv(x)
+            .reshape(B, N, 3, self.num_heads, C // self.num_heads)
+            .permute(2, 0, 3, 1, 4)
         )  # (K, B, H, N, D)
         q, k, v = qkv.unbind(0)  # each: (B, H, N, D)
 
@@ -295,8 +307,12 @@ class RotaryTransformerBlock(nn.Module):
             attn_drop=self.attn_drop,
             proj_drop=self.drop,
         )
-        self.drop_path1 = DropPath(self.drop_path) if self.drop_path > 0.0 else nn.Identity()
-        self.drop_path2 = DropPath(self.drop_path) if self.drop_path > 0.0 else nn.Identity()
+        self.drop_path1 = (
+            DropPath(self.drop_path) if self.drop_path > 0.0 else nn.Identity()
+        )
+        self.drop_path2 = (
+            DropPath(self.drop_path) if self.drop_path > 0.0 else nn.Identity()
+        )
         self.norm2 = self.norm_layer(self.dim)
         self.mlp = Mlp(
             in_features=self.dim,
@@ -383,7 +399,11 @@ class EMGClassificationHead(nn.Module):
     def __post_init__(self):
         super().__init__()
         # after reduction, feature_dim to either embed_dim or in_chans*embed_dim
-        feat_dim = self.embed_dim if self.reduction == "mean" else self.in_chans * self.embed_dim
+        feat_dim = (
+            self.embed_dim
+            if self.reduction == "mean"
+            else self.in_chans * self.embed_dim
+        )
 
         self.classifier = nn.Linear(feat_dim, self.num_classes)
 
@@ -465,7 +485,11 @@ class EMGRegressionHead(nn.Module):
 
     def __post_init__(self):
         super().__init__()
-        feat_dim = self.embed_dim if self.reduction == "mean" else self.in_chans * self.embed_dim
+        feat_dim = (
+            self.embed_dim
+            if self.reduction == "mean"
+            else self.in_chans * self.embed_dim
+        )
 
         self.regressor = nn.Sequential(
             nn.Conv1d(feat_dim, self.hidden_dim, kernel_size=1),
@@ -519,7 +543,9 @@ class EMGRegressionHead(nn.Module):
 
         # now upsample to target length
         if x.size(-1) != self.target_length:
-            x = F.interpolate(x, size=self.target_length, mode="linear", align_corners=False)
+            x = F.interpolate(
+                x, size=self.target_length, mode="linear", align_corners=False
+            )
 
         # x: (B, output_dim, target_length)
         out = x.transpose(1, 2)  # (B, target_length, output_dim)
@@ -601,7 +627,9 @@ class TinyMyo(nn.Module):
         )
         self.norm = self.norm_layer(self.embed_dim)
 
-        if self.task == "pretraining" or self.num_classes == 0:  # reconstruction (pre-training)
+        if (
+            self.task == "pretraining" or self.num_classes == 0
+        ):  # reconstruction (pre-training)
             self.model_head = PatchReconstructionHead(
                 img_size=self.img_size,
                 patch_size=self.patch_size,
@@ -670,7 +698,9 @@ class TinyMyo(nn.Module):
             if mlp_fc2 is not None:
                 rescale(mlp_fc2.weight.data, layer_id)
 
-    def prepare_tokens(self, x_signal: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def prepare_tokens(
+        self, x_signal: torch.Tensor, mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """
         Prepares input tokens by embedding patches and applying masking if provided.
         Args:
@@ -685,7 +715,9 @@ class TinyMyo(nn.Module):
             mask_tokens = self.mask_token.repeat(
                 x_masked.shape[0], x_masked.shape[1], 1
             )  # (B, N, D) N = C * num_patches_per_channel
-            mask = rearrange(mask, "B C (S P) -> B (C S) P", P=self.patch_size)  # (B, C, T) -> (B, N, P)
+            mask = rearrange(
+                mask, "B C (S P) -> B (C S) P", P=self.patch_size
+            )  # (B, C, T) -> (B, N, P)
             mask = (
                 (mask.sum(dim=-1) > 0).unsqueeze(-1).float()
             )  # (B, N, 1), since a patch is either fully masked or not

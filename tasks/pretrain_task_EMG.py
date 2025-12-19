@@ -180,7 +180,7 @@ class MaskTask(pl.LightningModule):
                 x_reconstructed_unpatched.float(),
                 mask,
                 batch_indices=random_indices,
-                indice_batch=batch_idx,
+                batch_idx=batch_idx,
             )
         return loss
 
@@ -226,7 +226,7 @@ class MaskTask(pl.LightningModule):
     def lr_scheduler_step(self, scheduler, metric):
         scheduler.step(epoch=self.current_epoch)
 
-    def log_signals_with_mask(self, original, reconstructed, mask=None, batch_indices=None, indice_batch=None):
+    def log_signals_with_mask(self, original, reconstructed, mask=None, batch_indices=None, batch_idx=None):
         """
         Log original and reconstructed signals highlighting masked regions.
 
@@ -235,7 +235,7 @@ class MaskTask(pl.LightningModule):
             reconstructed (torch.Tensor): Signals reconstructed by the model.
             mask (torch.BoolTensor, optional): Applied mask.
             batch_indices (list[int], optional): Batch indices to log.
-            indice_batch (int, optional): Current batch index.
+            batch_idx (int, optional): Current batch index.
         """
         patch_H, patch_W = self.patch_size
         batch_size, C, T = original.shape
@@ -281,7 +281,7 @@ class MaskTask(pl.LightningModule):
 
             # Remove duplicates and sort highlighted indices
             indices_array = np.array(indices)
-            indices_array = np.unique(indices)
+            indices_array = np.unique(indices_array)
 
             ax.set_title(f"Signal Reconstruction - batch_ {batch_idx}")
             ax.legend()

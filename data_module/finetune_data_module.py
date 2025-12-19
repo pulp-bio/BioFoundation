@@ -78,7 +78,6 @@ class FinetuneDataModule(pl.LightningDataModule):
             num_workers=self.cfg.num_workers,
             drop_last=True,  # Drop last incomplete batch to keep batch sizes consistent
             pin_memory=True,
-            persistent_workers=True,
         )
 
     def val_dataloader(self):
@@ -92,7 +91,6 @@ class FinetuneDataModule(pl.LightningDataModule):
             num_workers=self.cfg.num_workers,
             drop_last=False,
             pin_memory=True,
-            persistent_workers=True,
         )
 
     def test_dataloader(self):

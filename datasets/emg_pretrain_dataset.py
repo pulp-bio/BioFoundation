@@ -19,13 +19,14 @@
 import os
 import threading
 from collections import deque
+from typing import Optional
 
 import h5py
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-# thread‐local storage for per‐worker file handle
+# thread-local storage for per-worker file handle
 _thread_local = threading.local()
 
 
@@ -65,8 +66,8 @@ class EMGPretrainDataset(Dataset):
         squeeze: bool = False,
         cache_size: int = 1500,
         use_cache: bool = True,
-        pad_up_to_max_chans: int | None = None,
-        max_samples: int | None = None,
+        pad_up_to_max_chans: Optional[int] = None,
+        max_samples: Optional[int] = None,
     ):
         super().__init__()
         self.squeeze = squeeze

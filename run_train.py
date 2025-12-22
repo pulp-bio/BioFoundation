@@ -37,8 +37,10 @@ from pytorch_lightning.strategies import DDPStrategy
 
 from util.train_utils import find_last_checkpoint_path
 
-os.environ["DATA_PATH"] = os.environ.get("DATA_PATH", "#CHANGEME")
-os.environ["CHECKPOINT_DIR"] = os.environ.get("CHECKPOINT_DIR", "#CHANGEME")
+for env_var in ["DATA_PATH", "CHECKPOINT_DIR"]:
+    env_var_value = os.environ.get(env_var)
+    if env_var_value is None or env_var_value == "#CHANGEME":
+        raise RuntimeError(f"Environment variable {env_var} is not set. Please set it before running the script.")
 
 OmegaConf.register_new_resolver("env", lambda key: os.getenv(key))
 OmegaConf.register_new_resolver("get_method", hydra.utils.get_method)
@@ -85,7 +87,7 @@ def train(cfg: DictConfig):
     else:
         print("No pretrained checkpoint provided. Proceeding without loading.")
 
-    # New Checkpoint dipath
+    # New Checkpoint dirpath
     checkpoint_dirpath = cfg.io.checkpoint_dirpath
     checkpoint_dirpath = osp.join(checkpoint_dirpath, cfg.tag, version)
     print(f"Checkpoint path: {checkpoint_dirpath}")
@@ -156,7 +158,7 @@ def train(cfg: DictConfig):
                 datamodule=data_module,
                 results=results,
                 accelerator=cfg.trainer.accelerator,
-                last_ckpt=last_ckpt,
+                last_ckpt=best_ckpt,
             )
 
     if not cfg.training:

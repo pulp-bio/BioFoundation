@@ -2,7 +2,7 @@
 
 **TinyMyo** is a lightweight **3.6M-parameter** Transformer-based foundation model (FM) for **surface EMG (sEMG)**. It is designed for **broad generalization** across datasets, sensor configurations, domains, and tasks—while remaining efficient enough for **ultra-low-power edge deployment** on microcontrollers.
 
-TinyMyo is the **first EMG foundation model** demonstrated on a microcontroller (GAP9), achieving **36.45 mW** average power consumption.
+TinyMyo is the **first EMG foundation model** demonstrated on a microcontroller (GAP9), achieving an inference time of **0.785 s**, energy of **44.91 mJ**and power envelope of **57.18 mW**.
 
 ---
 
@@ -64,6 +64,7 @@ Following SimMIM philosophy, the minimal decoder forces the encoder to learn str
 
 * **50% random masking** with a learnable [MASK] token
 * Reconstruction loss = **Smooth L1**
+
 $$
   \mathcal{L} = \mathcal{L}*{\text{masked}} + 0.1 \cdot \mathcal{L}*{\text{visible}}
 $$
@@ -213,11 +214,11 @@ Key elements:
 * Integer softmax, integer LayerNorm, integer GELU
 * Static liveness-based memory arena
 
-**Runtime (NinaPro DB5 pipeline):**
+**Runtime (NinaPro EPN612 pipeline):**
 
-* **12.2 s inference time**
-* **0.44 J energy**
-* **36.45 mW average power**
+* **0.785 s inference time**
+* **44.91 mJ energy**
+* **57.18 mW average power**
 
 This is the **first demonstration of an EMG FM on a microcontroller**.
 

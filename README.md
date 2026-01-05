@@ -42,6 +42,7 @@ Looking for ready-to-use weights of models? We host them on Hugging Face:
 
 - **FEMBA** ([paper](https://arxiv.org/abs/2502.06438)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-FEMBA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/thorir/FEMBA)
 - **LUNA** ([paper](https://arxiv.org/abs/2510.22257)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-LUNA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/thorir/LUNA)
+- **TinyMyo** ([paper](https://arxiv.org/abs/2512.15729)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-TinyMyo-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/MatteoFasulo/TinyMyo)
 
 #### Why FEMBA?
 
@@ -130,6 +131,44 @@ Tips:
 - TUH datasets (TUAB/TUAR/TUSL): keep `- override /data_module: finetune_data_module` and set `data_module.*.hdf5_file` to your `{train,val,test}.h5`.
 - Non-TUH (e.g., SEED-V): use `- override /data_module: subject_independent_data_module` and remove the TUH-specific `data_module` block.
 - Match task settings: `classification_type` (`bc`, `mc`, `mmc`, `mcc`) and `model.num_classes` (e.g., TUSL=4, TUAB=2).
+
+#### Why TinyMyo?
+
+- **Ultra-lightweight**: only 3.6M parameters, suitable for microcontroller deployment.
+- **Broad generalization**: pretrained on multiple large-scale EMG datasets for versatility across tasks and sensor configurations.
+- **Strong results** on surface EMG tasks with ready task-specific checkpoints.
+
+**➡️ Model hub:** <https://huggingface.co/MatteoFasulo/TinyMyo>
+**📄 Model card:** [TinyMyo on Hugging Face](https://huggingface.co/MatteoFasulo/TinyMyo) — benchmarks, protocols, and efficiency notes.
+**📜 Weights license:** CC BY-ND 4.0 (use + redistribute **unmodified** weights with attribution; no redistribution of **modified** weights)
+**🧑‍🍳 PR-gated improvements:** If you fine-tune internally and want your variant to become an **official** TinyMyo release, open a PR with configs, logs, and evals. We’ll review together; if it looks good, we’ll retrain/validate and publish an **official** TinyMyo checkpoint.
+**What you’ll find on the hub**
+
+- `DB5/` → gesture classification
+- `UCI_EMG/` → gesture classification
+- `EPN612/` → gesture classification
+
+Quick download with `huggingface_hub`:
+
+```bash
+pip install huggingface_hub
+```
+
+```python
+from huggingface_hub import snapshot_download
+
+# downloads all task folders (DB5/UCI_EMG/EPN612) and safetensors into ./checkpoints/TinyMyo
+snapshot_download(repo_id="MatteoFasulo/TinyMyo", repo_type="model", local_dir="checkpoints/TinyMyo")
+```
+
+Use the paths directly in your runs, e.g.:
+
+```bash
+export DATA_PATH=/path/to/data
+export CHECKPOINT_DIR=checkpoints/TinyMyo/UCI_EMG/base.safetensors
+python -u run_train.py +experiment=TinyMyo_finetune \
+  pretrained_safetensors_path=/path/to/model.safetensors
+```
 
 ## Features
 
@@ -331,6 +370,16 @@ If you find this work useful, please cite the respective papers:
   booktitle={The Thirty-ninth Annual Conference on Neural Information Processing Systems},
   year={2025},
   url={https://openreview.net/forum?id=uazfjnFL0G}
+}
+
+@misc{fasulo2025tinymyotinyfoundationmodel,
+      title={TinyMyo: a Tiny Foundation Model for Flexible EMG Signal Processing at the Edge},
+      author={Matteo Fasulo and Giusy Spacone and Thorir Mar Ingolfsson and Yawei Li and Luca Benini and Andrea Cossettini},
+      year={2025},
+      eprint={2512.15729},
+      archivePrefix={arXiv},
+      primaryClass={eess.SP},
+      url={https://arxiv.org/abs/2512.15729},
 }
 ```
 

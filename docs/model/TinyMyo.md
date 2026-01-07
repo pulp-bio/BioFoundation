@@ -1,6 +1,6 @@
 # **TinyMyo: A Tiny Foundation Model for EMG Signals**
 
-**TinyMyo** is a lightweight **3.6M-parameter** Transformer-based foundation model (FM) for **surface EMG (sEMG)**. It is designed for **broad generalization** across datasets, sensor configurations, domains, and tasks—while remaining efficient enough for **ultra-low-power edge deployment** on microcontrollers.
+**TinyMyo** is a lightweight **3.6M-parameter** Transformer-based foundation model (FM) for **surface EMG (sEMG)**. It is designed for **broad generalization** across datasets, sensor configurations, domains, and tasks, while remaining efficient enough for **ultra-low-power edge deployment** on microcontrollers.
 
 TinyMyo is the **first EMG foundation model** demonstrated on a microcontroller (GAP9), achieving an inference time of **0.785 s**, energy of **44.91 mJ**and power envelope of **57.18 mW**.
 
@@ -117,6 +117,9 @@ Evaluated on:
 * **EPN-612** (5 classes, 612 subjects)
 * **UCI EMG** (6 classes, 36 subjects)
 * **Generic Neuromotor Interface** (Meta wristband; 9 gestures)
+  * Repository: [MatteoFasulo/generic-neuromotor-interface](https://github.com/MatteoFasulo/generic-neuromotor-interface)
+
+>Note: Additional details on generic non-invasive neuromotor interface dataset and instructions on how to run experiments can be found in the linked repository inside the `notebooks` folder.
 
 **Pipeline**
 
@@ -169,6 +172,8 @@ Although previous works achieve lower MAE (≈6.89°), those models are **subjec
 
 Dataset: **Gaddy Silent Speech**
 (8 channels, 1000 Hz, face/neck EMG)
+Repository: [MatteoFasulo/silent_speech](https://github.com/MatteoFasulo/silent_speech)
+>Note: Additional details on Silent Speech dataset and instructions on how to run experiments can be found in the linked repository.
 
 #### **Speech Production (EMG -> MFCC -> HiFi-GAN -> Audio)**
 

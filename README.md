@@ -142,6 +142,7 @@ Tips:
 **📄 Model card:** [TinyMyo on Hugging Face](https://huggingface.co/MatteoFasulo/TinyMyo) — benchmarks, protocols, and efficiency notes.
 **📜 Weights license:** CC BY-ND 4.0 (use + redistribute **unmodified** weights with attribution; no redistribution of **modified** weights)
 **🧑‍🍳 PR-gated improvements:** If you fine-tune internally and want your variant to become an **official** TinyMyo release, open a PR with configs, logs, and evals. We’ll review together; if it looks good, we’ll retrain/validate and publish an **official** TinyMyo checkpoint.
+
 **What you’ll find on the hub**
 
 - `DB5/` → gesture classification
@@ -169,6 +170,13 @@ export CHECKPOINT_DIR=checkpoints/TinyMyo/UCI_EMG/base.safetensors
 python -u run_train.py +experiment=TinyMyo_finetune \
   pretrained_safetensors_path=/path/to/model.safetensors
 ```
+
+**What you won’t find on the hub**
+
+- **Silent Speech**
+  - Codebase: [MatteoFasulo/silent_speech](https://github.com/MatteoFasulo/silent_speech)
+- **Generic Neuromotor Interface**
+  - Codebase: [MatteoFasulo/generic-neuromotor-interface](https://github.com/MatteoFasulo/generic-neuromotor-interface)
 
 ## Features
 
@@ -387,4 +395,4 @@ If you find this work useful, please cite the respective papers:
 
 This project is licensed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for details.
 
-**Note on model weights:** Pretrained weights are hosted at <https://huggingface.co/thorir/FEMBA> and <https://huggingface.co/thorir/LUNA> and licensed under **CC BY-ND 4.0**. You may use and redistribute the **unmodified** weights with attribution. Redistribution of **modified** weights is not permitted. To upstream improvements, please open a PR; accepted changes will be released as **official** checkpoints.
+**Note on model weights:** Pretrained weights are hosted at <https://huggingface.co/thorir/FEMBA>, <https://huggingface.co/thorir/LUNA>, and <https://huggingface.co/MatteoFasulo/TinyMyo> and licensed under **CC BY-ND 4.0**. You may use and redistribute the **unmodified** weights with attribution. Redistribution of **modified** weights is not permitted. To upstream improvements, please open a PR; accepted changes will be released as **official** checkpoints.

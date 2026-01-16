@@ -149,6 +149,8 @@ Tips:
 - `UCI_EMG/` → gesture classification
 - `EPN612/` → gesture classification
 
+> The scripts to download and preprocess the datasets are available at: <https://huggingface.co/MatteoFasulo/TinyMyo/tree/main/scripts>
+
 Quick download with `huggingface_hub`:
 
 ```bash

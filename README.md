@@ -16,7 +16,7 @@
   <a href="https://huggingface.co/thorir/LUNA">
     <img src="https://img.shields.io/badge/HuggingFace-LUNA-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: LUNA">
   </a>
-  <a href="https://huggingface.co/MatteoFasulo/TinyMyo">
+  <a href="https://huggingface.co/PulpBio/TinyMyo">
     <img src="https://img.shields.io/badge/HuggingFace-TinyMyo-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: TinyMyo">
   </a>
   <a href="https://github.com/pulp-bio/BioFoundation">
@@ -42,7 +42,7 @@ Looking for ready-to-use weights of models? We host them on Hugging Face:
 
 - **FEMBA** ([paper](https://arxiv.org/abs/2502.06438)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-FEMBA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/thorir/FEMBA)
 - **LUNA** ([paper](https://arxiv.org/abs/2510.22257)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-LUNA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/thorir/LUNA)
-- **TinyMyo** ([paper](https://arxiv.org/abs/2512.15729)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-TinyMyo-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/MatteoFasulo/TinyMyo)
+- **TinyMyo** ([paper](https://arxiv.org/abs/2512.15729)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-TinyMyo-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/PulpBio/TinyMyo)
 
 #### Why FEMBA?
 
@@ -138,8 +138,8 @@ Tips:
 - **Broad generalization**: pretrained on multiple large-scale EMG datasets for versatility across tasks and sensor configurations.
 - **Strong results** on surface EMG tasks with ready task-specific checkpoints.
 
-**➡️ Model hub:** <https://huggingface.co/MatteoFasulo/TinyMyo>
-**📄 Model card:** [TinyMyo on Hugging Face](https://huggingface.co/MatteoFasulo/TinyMyo) — benchmarks, protocols, and efficiency notes.
+**➡️ Model hub:** <https://huggingface.co/PulpBio/TinyMyo>
+**📄 Model card:** [TinyMyo on Hugging Face](https://huggingface.co/PulpBio/TinyMyo) — benchmarks, protocols, and efficiency notes.
 **📜 Weights license:** CC BY-ND 4.0 (use + redistribute **unmodified** weights with attribution; no redistribution of **modified** weights)
 **🧑‍🍳 PR-gated improvements:** If you fine-tune internally and want your variant to become an **official** TinyMyo release, open a PR with configs, logs, and evals. We’ll review together; if it looks good, we’ll retrain/validate and publish an **official** TinyMyo checkpoint.
 
@@ -149,7 +149,7 @@ Tips:
 - `UCI_EMG/` → gesture classification
 - `EPN612/` → gesture classification
 
-> The scripts to download and preprocess the datasets are available at: <https://huggingface.co/MatteoFasulo/TinyMyo/tree/main/scripts>
+> The scripts to download and preprocess the datasets are available at: <https://huggingface.co/PulpBio/TinyMyo/tree/main/scripts>
 
 Quick download with `huggingface_hub`:
 
@@ -375,11 +375,11 @@ If you find this work useful, please cite the respective papers:
       url={https://arxiv.org/abs/2502.06438},
 }
 @inproceedings{doner2025luna,
-  title={{LUNA}: Efficient and Topology-Agnostic Foundation Model for {EEG} Signal Analysis},
-  author={Berkay D{\"o}ner and Thorir Mar Ingolfsson and Luca Benini and Yawei Li},
-  booktitle={The Thirty-ninth Annual Conference on Neural Information Processing Systems},
-  year={2025},
-  url={https://openreview.net/forum?id=uazfjnFL0G}
+      title={{LUNA}: Efficient and Topology-Agnostic Foundation Model for {EEG} Signal Analysis},
+      author={Berkay D{\"o}ner and Thorir Mar Ingolfsson and Luca Benini and Yawei Li},
+      booktitle={The Thirty-ninth Annual Conference on Neural Information Processing Systems},
+      year={2025},
+      url={https://openreview.net/forum?id=uazfjnFL0G}
 }
 
 @misc{fasulo2025tinymyotinyfoundationmodel,
@@ -397,4 +397,4 @@ If you find this work useful, please cite the respective papers:
 
 This project is licensed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for details.
 
-**Note on model weights:** Pretrained weights are hosted at <https://huggingface.co/thorir/FEMBA>, <https://huggingface.co/thorir/LUNA>, and <https://huggingface.co/MatteoFasulo/TinyMyo> and licensed under **CC BY-ND 4.0**. You may use and redistribute the **unmodified** weights with attribution. Redistribution of **modified** weights is not permitted. To upstream improvements, please open a PR; accepted changes will be released as **official** checkpoints.
+**Note on model weights:** Pretrained weights are hosted at <https://huggingface.co/thorir/FEMBA>, <https://huggingface.co/thorir/LUNA>, and <https://huggingface.co/PulpBio/TinyMyo> and licensed under **CC BY-ND 4.0**. You may use and redistribute the **unmodified** weights with attribution. Redistribution of **modified** weights is not permitted. To upstream improvements, please open a PR; accepted changes will be released as **official** checkpoints.

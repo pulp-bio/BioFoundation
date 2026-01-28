@@ -1,0 +1,46 @@
+[project]
+name = "BioFoundation"
+version = "0.1.0"
+description = "BioFoundation is a flexible and extensible codebase for deep learning with biological signals."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+dependencies = [
+  "einops",
+  "fvcore",
+  "omegaconf",
+  "hydra-core",
+  "scipy",
+  "h5py",
+  "python-dateutil",
+  "lightning",
+  "tqdm",
+  "pandas",
+  "mne",
+  "psutil",
+  "pyyaml",
+  "tensorboardX",
+  "torch>=2.4.0, <2.8.0",
+  "scikit-learn",
+  "tensorboard",
+  "tensorrt",
+  "torch_optimizer",
+  "tables",
+  "timm",
+  "torchaudio",
+  "torcheeg",
+  "torchmetrics",
+  "warmup-scheduler",
+  "safetensors",
+  "rotary-embedding-torch",
+]
+
+[tool.uv.sources]
+warmup-scheduler = { git = "https://github.com/ildoonet/pytorch-gradual-warmup-lr.git" }
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3

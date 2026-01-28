@@ -1,0 +1,79 @@
+# @package _global_
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  Matteo Fasulo                                                     *
+#*----------------------------------------------------------------------------*
+tag: EMG_pretrain
+
+gpus: -1
+num_nodes: 1
+num_workers: 8
+batch_size: 128
+max_epochs: 50
+
+final_validate: True
+final_test: False
+
+pretrained_checkpoint_path: null
+io:
+  base_output_path: ${env:DATA_PATH}
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  version: 0
+
+defaults:
+  - override /data_module: emg_pretrain_data_module
+  - override /model: TinyMyo_pretrain
+  - override /scheduler: cosine
+  - override /task: pretrain_task_TinyMyo
+  - override /criterion: pretrain_criterion
+
+masking:
+  patch_size: [1, 20]
+  masking_ratio: 0.50
+  unmasked_loss_coeff: 0.1
+
+input_normalization:
+  normalize: True
+
+scheduler:
+  trainer: ${trainer}
+  min_lr: 1e-6
+  warmup_lr_init: 1e-6
+  warmup_epochs: 10
+  total_training_opt_steps: ${max_epochs}
+  t_in_epochs: True
+
+trainer:
+  accelerator: gpu
+  num_nodes: ${num_nodes}
+  devices: ${gpus}
+  strategy: auto
+  max_epochs: ${max_epochs}
+  gradient_clip_val: 3
+  accumulate_grad_batches: 8
+
+model_checkpoint:
+  save_last: True
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+
+optimizer:
+  optim: 'AdamW'
+  lr: 1e-4
+  betas: [0.9, 0.98]
+  weight_decay: 0.01

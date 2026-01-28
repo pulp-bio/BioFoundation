@@ -1,30 +1,28 @@
-#*----------------------------------------------------------------------------*
-#* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
-#* SPDX-License-Identifier: Apache-2.0                                        *
-#*                                                                            *
-#* Licensed under the Apache License, Version 2.0 (the "License");            *
-#* you may not use this file except in compliance with the License.           *
-#* You may obtain a copy of the License at                                    *
-#*                                                                            *
-#* http://www.apache.org/licenses/LICENSE-2.0                                 *
-#*                                                                            *
-#* Unless required by applicable law or agreed to in writing, software        *
-#* distributed under the License is distributed on an "AS IS" BASIS,          *
-#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
-#* See the License for the specific language governing permissions and        *
-#* limitations under the License.                                             *
-#*                                                                            *
-#* Author:  Anna Tegon                                                        *
-#* Author:  Thorir Mar Ingolfsson                                             *
-#*----------------------------------------------------------------------------*
+# *----------------------------------------------------------------------------*
+# * Copyright (C) 2025 ETH Zurich, Switzerland                                 *
+# * SPDX-License-Identifier: Apache-2.0                                        *
+# *                                                                            *
+# * Licensed under the Apache License, Version 2.0 (the "License");            *
+# * you may not use this file except in compliance with the License.           *
+# * You may obtain a copy of the License at                                    *
+# *                                                                            *
+# * http://www.apache.org/licenses/LICENSE-2.0                                 *
+# *                                                                            *
+# * Unless required by applicable law or agreed to in writing, software        *
+# * distributed under the License is distributed on an "AS IS" BASIS,          *
+# * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+# * See the License for the specific language governing permissions and        *
+# * limitations under the License.                                             *
+# *                                                                            *
+# * Author:  Anna Tegon                                                        *
+# * Author:  Thorir Mar Ingolfsson                                             *
+# *----------------------------------------------------------------------------*
 from typing import Optional
+
 import pytorch_lightning as pl
-from torch.utils.data import (
-    DataLoader,
-    ConcatDataset,
-    Dataset,
-)
 import torch
+from torch.utils.data import ConcatDataset, DataLoader
+
 
 class PretrainDataModule(pl.LightningDataModule):
     """
@@ -44,12 +42,12 @@ class PretrainDataModule(pl.LightningDataModule):
 
     def __init__(
         self,
-        datasets: [torch.utils.data.Dataset], 
+        datasets: [torch.utils.data.Dataset],
         test=None,
         cfg=None,
         name="",
         train_val_split_ratio=0.8,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
 
@@ -82,7 +80,7 @@ class PretrainDataModule(pl.LightningDataModule):
         self.name = name
         self.cfg = cfg
         self.batch_size = self.cfg.batch_size
-        
+
         print(len(self.train), len(self.val))
 
     def setup(self, stage: Optional[str] = None):
@@ -122,9 +120,10 @@ class PretrainDataModule(pl.LightningDataModule):
             self.train_dataset,
             num_workers=self.cfg.num_workers,
             pin_memory=True,
+            persistent_workers=True,
             shuffle=True,
             batch_size=self.batch_size,
-            drop_last=True
+            drop_last=True,
         )
 
     def val_dataloader(self):
@@ -145,7 +144,8 @@ class PretrainDataModule(pl.LightningDataModule):
             self.val_dataset,
             num_workers=self.cfg.num_workers,
             pin_memory=True,
+            persistent_workers=True,
             shuffle=False,
             batch_size=self.batch_size,
-            drop_last=True
+            drop_last=True,
         )

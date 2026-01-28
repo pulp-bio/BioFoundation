@@ -1,0 +1,40 @@
+# @package _global_
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  Matteo Fasulo                                                     *
+#*----------------------------------------------------------------------------*
+data_module:
+  _target_: 'data_module.pretrain_data_module.PretrainDataModule'
+  name: "emg"
+  cfg:
+    num_workers: ${num_workers}
+    batch_size: ${batch_size}
+  test: null
+  train_val_split_ratio: 0.8
+  datasets:
+    demo_dataset: null
+    emg2pose:
+      _target_: 'datasets.emg_pretrain_dataset.EMGPretrainDataset'
+      data_dir: "${env:DATA_PATH}/emg2pose/h5/"
+    db6:
+      _target_: 'datasets.emg_pretrain_dataset.EMGPretrainDataset'
+      data_dir: "${env:DATA_PATH}/ninapro/DB6/h5/"
+      pad_up_to_max_chans: 16
+    db7:
+      _target_: 'datasets.emg_pretrain_dataset.EMGPretrainDataset'
+      data_dir: "${env:DATA_PATH}/ninapro/DB7/h5/"
+      pad_up_to_max_chans: 16

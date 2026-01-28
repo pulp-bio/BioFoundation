@@ -26,7 +26,7 @@
 
 Copyright (C) 2025 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file for details.
 
-Authors: Thorir Mar Ingolfsson, Anna Tegon, Berkay Döner, Xiaying Wang, Yawei Li & Luca Benini.
+Authors: Thorir Mar Ingolfsson, Anna Tegon, Berkay Döner, Xiaying Wang, Matteo Fasulo, Yawei Li & Luca Benini.
 
 ## About
 
@@ -202,6 +202,14 @@ conda create -n BioFoundation
 conda activate BioFoundation
 pip install -r requirements.txt
 ```
+
+alternatively, you can create a venv using [`uv`](https://docs.astral.sh/uv/) and then install via `pyproject.toml` with:
+
+```bash
+uv pip install -r pyproject.toml --torch-backend=auto
+```
+
+where `--torch-backend=auto` will query for installed CUDA driver, AMD GPU versions, and Intel GPU presence and then use the most-compatible PyTorch index for all the torch-related packages. Have a look at [uv docs](https://docs.astral.sh/uv/guides/integration/pytorch/#automatic-backend-selection) for more details.
 
 ### Path changes
 

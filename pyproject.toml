@@ -3,6 +3,7 @@ name = "BioFoundation"
 version = "0.1.0"
 description = "BioFoundation is a flexible and extensible codebase for deep learning with biological signals."
 readme = "README.md"
+license = "Apache-2.0"
 requires-python = ">=3.11"
 dependencies = [
   "einops",
@@ -34,17 +35,11 @@ dependencies = [
   "rotary-embedding-torch",
 ]
 
-[[tool.uv.index]]
-name = "pytorch-cu126"
-url = "https://download.pytorch.org/whl/cu126"
-explicit = true
-
 [tool.uv.sources]
 warmup-scheduler = { git = "https://github.com/ildoonet/pytorch-gradual-warmup-lr.git" }
 
 [tool.black]
-line-length = 88
-target-version = ["py311"]
+line-length = 120
 
 [tool.isort]
 profile = "black"

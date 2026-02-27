@@ -149,7 +149,7 @@ TinyMyo achieves **state-of-the-art** on DB5, EPN-612, and UCI.
 
 ### **4.2 Hand Kinematic Regression**
 
-Dataset: **Ninapro DB8**
+Dataset: **Ninapro DB8** (2000 Hz)
 Task: Regress **5 joint angles (DoA)**
 Preprocessing: z-score only; windows of **100 ms** or **500 ms**
 
@@ -162,7 +162,7 @@ Preprocessing: z-score only; windows of **100 ms** or **500 ms**
 
 **Performance (Fine-tuned)**
 
-* **MAE = 8.77 ± 0.12°** (1000 ms window)
+* **MAE = 8.77 ± 0.12°** (500 ms window)
 
 Although previous works achieve lower MAE (≈6.89°), those models are **subject-specific**, whereas TinyMyo trains **one model across all subjects**, a significantly harder problem.
 

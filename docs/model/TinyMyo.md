@@ -113,9 +113,9 @@ TinyMyo supports three major categories:
 
 Evaluated on:
 
-* **Ninapro DB5** (52 classes, 10 subjects)
-* **EPN-612** (5 classes, 612 subjects)
-* **UCI EMG** (6 classes, 36 subjects)
+* **Ninapro DB5** (52 classes, 10 subjects, 200 Hz)
+* **EPN-612** (5 classes, 612 subjects, 200 Hz)
+* **UCI EMG** (6 classes, 36 subjects, 200 Hz)
 * **Generic Neuromotor Interface** (Meta wristband; 9 gestures)
   * Repository: [MatteoFasulo/generic-neuromotor-interface](https://github.com/MatteoFasulo/generic-neuromotor-interface)
 
@@ -126,8 +126,8 @@ Evaluated on:
 * EMG filtering: **20–90 Hz** bandpass + 50 Hz notch
 * Windows:
 
-  * **200 ms** (best for DB5)
-  * **1000 ms** (best for EPN & UCI)
+  * **1 sec** (best for DB5)
+  * **5 sec** (best for EPN & UCI)
 * Per-channel z-scoring
 * Linear classification head
 
@@ -138,9 +138,9 @@ Evaluated on:
 
 | Dataset                  | Metric   | Result            |
 | ------------------------ | -------- | ----------------- |
-| **Ninapro DB5 (200 ms)** | Accuracy | **89.41 ± 0.16%** |
-| **EPN-612 (1000 ms)**    | Accuracy | **96.74 ± 0.09%** |
-| **UCI EMG (1000 ms)**    | Accuracy | **97.56 ± 0.32%** |
+| **Ninapro DB5 (1 sec)** | Accuracy | **89.41 ± 0.16%** |
+| **EPN-612 (5 sec)**    | Accuracy | **96.74 ± 0.09%** |
+| **UCI EMG (5 sec)**    | Accuracy | **97.56 ± 0.32%** |
 | **Neuromotor Interface** | CLER     | **0.153 ± 0.006** |
 
 TinyMyo achieves **state-of-the-art** on DB5, EPN-612, and UCI.
@@ -151,7 +151,7 @@ TinyMyo achieves **state-of-the-art** on DB5, EPN-612, and UCI.
 
 Dataset: **Ninapro DB8**
 Task: Regress **5 joint angles (DoA)**
-Preprocessing: z-score only; windows of **200 ms** or **1000 ms**
+Preprocessing: z-score only; windows of **100 ms** or **500 ms**
 
 **Regression head (788k params)**
 
@@ -219,7 +219,7 @@ Key elements:
 * Integer softmax, integer LayerNorm, integer GELU
 * Static liveness-based memory arena
 
-**Runtime (NinaPro EPN612 pipeline):**
+**Runtime (EPN612 dataset):**
 
 * **0.785 s inference time**
 * **44.91 mJ energy**

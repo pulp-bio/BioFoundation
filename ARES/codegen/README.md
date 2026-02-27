@@ -1,3 +1,4 @@
+Copyright (C) 2026 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file at the root of the repository for details.
 # Code Generation Module
 
 Generates production-ready C code for GAP9 RISC-V processor from verified INT8 neural networks with L1 tiling, async DMA pipelining, L3 memory staging, and cross-layer fusion.

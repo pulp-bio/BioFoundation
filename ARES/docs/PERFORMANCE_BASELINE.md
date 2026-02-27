@@ -79,23 +79,6 @@ Previously failing tests now fixed:
 | Mamba/SSM | 0.01-1.2 | Memory-bound state ops |
 | FEMBA | 1.1-1.8 | State-heavy operations |
 
-### Notes
-
-1. **MACs/Cycle interpretation:**
-   - GAP9 cluster has 8 RISC-V cores with SIMD (theoretical ~8 MACs/cycle)
-   - NE16 accelerator adds up to 16 MACs/cycle for supported operations
-   - Combined peak: ~24 MACs/cycle theoretical
-   - Values >8 indicate effective NE16 utilization
-   - Values <1 indicate memory-bound or overhead-dominated layers
-
-2. **Low MACs/Cycle tests:**
-   - test_16_mamba_conv1d (0.001): Tiny test, setup overhead dominates
-   - test_17_mamba_ssm (0.026): State-space operations are memory-bound
-   - test_11_layernorm_basic (0.028): Reduction ops, not compute-bound
-
-3. **test_31_luna_full:** Cycles increased ~9% vs Feb 1 baseline (100M→109M) with
-   identical MAC count. Suspected cause: re-training produces different weight
-   distributions affecting tiling branching. Worth monitoring.
 
 ## Updating This Baseline
 

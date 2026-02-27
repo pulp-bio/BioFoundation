@@ -1,3 +1,4 @@
+Copyright (C) 2026 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file at the root of the repository for details.
 # ARES Optimization Framework
 
 This module provides automated optimization for ARES neural network code generation through a knowledge base and auto-tuning system.

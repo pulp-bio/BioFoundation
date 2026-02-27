@@ -1,3 +1,4 @@
+Copyright (C) 2026 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file at the root of the repository for details.
 # ARES Tutorials
 
 Interactive tutorials for learning the ARES deployment pipeline.

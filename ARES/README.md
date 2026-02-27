@@ -194,6 +194,6 @@ ARES supports RISC-V cluster processors with L3/L2/L1 memory hierarchies:
 
 ## License
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full text.
+Licensed under the Apache License, Version 2.0. See [LICENSE](../LICENSE) for the full text.
 
 See [NOTICE](NOTICE) for third-party acknowledgments.

@@ -1,3 +1,4 @@
+Copyright (C) 2026 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file at the root of the repository for details.
 # codegen/runtime
 
 Shared C “runtime” sources compiled into generated projects.

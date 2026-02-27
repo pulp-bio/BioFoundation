@@ -1,3 +1,4 @@
+Copyright (C) 2026 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file at the root of the repository for details.
 # Codegen Checkpoints and Replay
 
 This module provides deterministic JSON snapshots of codegen state at key

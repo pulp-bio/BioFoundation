@@ -1,3 +1,4 @@
+Copyright (C) 2026 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file at the root of the repository for details.
 # Documentation Hub
 
 Use this folder as the “map” for reading the repo. Start with the short entry-point docs, then go deeper as needed.

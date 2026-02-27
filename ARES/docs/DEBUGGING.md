@@ -180,11 +180,3 @@ network_conv1d_depthwise_int8(...);  // Uses pi_core_id() internally
 ```c
 pi_cl_team_fork(NUM_CORES, conv1d_worker, &args);
 ```
-
-### DMA Counter Exhaustion
-
-**Symptom:** Hang after exactly 16 DMA calls
-
-**Cause:** Queuing >16 DMAs without waiting (only 16 hardware counters)
-
-**Fix:** Batch DMAs in groups of 16, wait after each batch.

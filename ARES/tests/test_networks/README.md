@@ -1,3 +1,4 @@
+Copyright (C) 2026 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file at the root of the repository for details.
 # Test Networks (`tests/test_networks/`)
 
 These files define Brevitas/PyTorch models used by `tests/generate_all_tests.py` to generate end-to-end GAP9 projects under `tests/outputs/<test_name>/`.

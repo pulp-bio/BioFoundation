@@ -1,0 +1,6 @@
+torch==2.8.0
+einops==0.8.1
+brevitas==0.12.1
+numpy>=1.20.0
+mako>=1.2.0
+torchvision>=0.15.0

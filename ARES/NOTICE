@@ -1,0 +1,40 @@
+ARES (Automated Runtime for Embedded Systems)
+Copyright 2026 Thorir Mar Ingolfsson, ETH Zurich
+
+========================================================================
+Third-Party Acknowledgments
+========================================================================
+
+ARES targets the PULP (Parallel Ultra-Low-Power Processing) platform ecosystem. The following projects are acknowledged as references and related work in this space:
+
+------------------------------------------------------------------------
+PULP-NN
+------------------------------------------------------------------------
+Copyright 2019-2020 University of Bologna Licensed under the Apache License, Version 2.0
+https://github.com/pulp-platform/pulp-nn
+
+ARES kernel comments reference "PULP-NN style" optimization patterns (e.g., SIMD unrolling, im2col strategies). ARES kernels are independent implementations; no PULP-NN source code is incorporated.
+
+------------------------------------------------------------------------
+pulp-nnx
+------------------------------------------------------------------------
+Copyright 2023 University of Bologna / ETH Zurich Licensed under the Apache License, Version 2.0 
+https://github.com/pulp-platform/pulp-nnx
+
+The ARES NE16 accelerator driver references pulp-nnx documentation for hardware register interface compatibility.
+
+------------------------------------------------------------------------
+DORY (Deployment Oriented to Memory)
+------------------------------------------------------------------------
+Copyright 2020 University of Bologna Licensed under the Apache License, Version 2.0
+https://github.com/pulp-platform/dory
+
+DORY is a related deployment framework for PULP platforms. ARES was developed independently with a different architecture (data-driven pipeline, arena memory, hierarchical streaming) but targets the same hardware ecosystem. And the ideas presented in DORY reflect a lot of what I value in good model deployment code (easy to read, easy to add new features). DORY is also the framework that allowed me to deploy most of my advanced models before using ARES (BrainFuseNet, ECG-TCNet etc.).
+
+------------------------------------------------------------------------
+Brevitas
+------------------------------------------------------------------------
+Copyright Xilinx/AMD Licensed under the BSD 3-Clause License
+https://github.com/Xilinx/brevitas
+
+ARES uses Brevitas for quantization-aware training of source models. Brevitas is a runtime dependency, not distributed with ARES.

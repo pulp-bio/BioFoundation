@@ -1,0 +1,87 @@
+#@package _global_
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  Anna Tegon                                                        *
+#* Author:  Thorir Mar Ingolfsson                                             *
+#*----------------------------------------------------------------------------*
+tag: FEMBA_quantized
+
+gpus: 4
+num_nodes: 1
+num_workers: 16
+batch_size: 256
+
+training: True
+final_validate: True
+final_test: True
+finetune_pretrained: True
+
+find_unused_parameters: True
+
+layerwise_lr_decay: 0.75
+scheduler_type: cosine
+
+pretrained_checkpoint_path: "CHANGEME"
+
+input_normalization:
+  normalize: True
+  quartile_normalization_lower_val: -20
+  quartile_normalization_upper_val:  20
+
+finetuning:
+  freeze_layers: True
+
+io:
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  version: 0
+
+defaults:
+  - override /data_module: finetune_data_module
+  - override /model: FEMBA_quantized
+  - override /scheduler: constant_lr
+  - override /task: finetune_task
+  - override /criterion: finetune_criterion
+
+model:
+ num_classes: 2
+ classification_type: "bc"
+
+trainer:
+  accelerator: gpu
+  num_nodes: ${num_nodes}
+  devices: ${gpus}
+  strategy: ddp
+  max_epochs: 5
+
+model_checkpoint:
+  save_last: True
+  save_top_k: 1
+  monitor: "val_loss"
+  mode: "min"
+
+
+optimizer:
+  optim: 'AdamW'
+  lr: 5.0e-5
+  betas: [0.9, 0.999]
+  weight_decay: 0.5
+
+
+
+scheduler:
+  gamma: 0.1
+

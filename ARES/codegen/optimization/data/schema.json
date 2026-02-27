@@ -1,0 +1,165 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ARES Knowledge Base",
+  "description": "Schema for the ARES optimization knowledge base",
+  "type": "object",
+  "required": ["version", "entries"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Knowledge base schema version"
+    },
+    "last_updated": {
+      "type": "string",
+      "description": "Last update timestamp (YYYY-MM-DD)"
+    },
+    "description": {
+      "type": "string"
+    },
+    "source_documents": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of source documents used to populate the KB"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["op_type", "shape_pattern"],
+        "properties": {
+          "op_type": {
+            "type": "string",
+            "enum": [
+              "linear_int8",
+              "conv2d_int8",
+              "mhsa_int8",
+              "cross_attention_int8",
+              "layernorm_int8",
+              "gelu_int8",
+              "groupnorm_int8",
+              "rfft_int8",
+              "ssm_int8",
+              "add_int8",
+              "identity_requant",
+              "embedding",
+              "rope"
+            ],
+            "description": "Operation type"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of this optimization"
+          },
+          "shape_pattern": {
+            "type": "object",
+            "description": "Shape pattern for matching (values can be int, [min,max], or 'any')"
+          },
+          "tile_config": {
+            "type": "object",
+            "description": "Tiling configuration"
+          },
+          "kernel_config": {
+            "type": "object",
+            "description": "Kernel variant configuration"
+          },
+          "pipeline_config": {
+            "type": "object",
+            "description": "DMA/compute pipeline configuration"
+          },
+          "compile_flags": {
+            "type": "object",
+            "description": "C compile-time flags to enable this optimization"
+          },
+          "measured_macs_per_cycle": {
+            "type": "number",
+            "description": "Measured MACs/cycle performance"
+          },
+          "measured_overlap_ratio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "DMA/compute overlap ratio (0-1)"
+          },
+          "measured_cycles": {
+            "type": "integer",
+            "description": "Measured total cycles"
+          },
+          "measured_improvement": {
+            "type": "string",
+            "description": "Human-readable improvement description"
+          },
+          "source": {
+            "type": "string",
+            "description": "Source document or test for this optimization"
+          },
+          "test_network": {
+            "type": "string",
+            "description": "Test network used to validate this optimization"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Confidence score (0-1)"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Additional notes"
+          }
+        }
+      }
+    },
+    "negative_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["op_type", "attempted_config", "result"],
+        "properties": {
+          "op_type": {
+            "type": "string"
+          },
+          "attempted_config": {
+            "type": "object",
+            "description": "Configuration that was tried"
+          },
+          "result": {
+            "type": "string",
+            "description": "Result (e.g., 'regressed', 'regressed +X%')"
+          },
+          "source": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Optimizations that were tried but didn't work"
+    },
+    "compile_flag_reference": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string" },
+          "values": { "type": "array" },
+          "default": {},
+          "impact": { "type": "string" }
+        }
+      },
+      "description": "Reference documentation for compile-time flags"
+    },
+    "performance_baselines": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "total_cycles": { "type": "integer" },
+          "macs_per_total_cycle": { "type": "number" },
+          "notes": { "type": "string" }
+        }
+      },
+      "description": "Reference performance baselines for test networks"
+    }
+  }
+}

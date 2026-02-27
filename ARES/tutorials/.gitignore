@@ -1,0 +1,5 @@
+# Tutorial outputs (generated during notebook runs)
+outputs/
+*.pyc
+__pycache__/
+.ipynb_checkpoints/

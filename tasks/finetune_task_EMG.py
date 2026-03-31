@@ -16,7 +16,7 @@
 # *                                                                            *
 # * Author:  Matteo Fasulo                                                     *
 # *----------------------------------------------------------------------------*
-from typing import Optional
+from typing import Optional, Tuple
 
 import hydra
 import pytorch_lightning as pl
@@ -35,38 +35,44 @@ from torchmetrics.classification import (
     Precision,
     Recall,
 )
+from torchmetrics.regression import MeanAbsoluteError, MeanSquaredError, R2Score
 
 from biofoundation.core.batch import as_signal_batch
 from util.train_utils import MinMaxNormalization
 
 
 class FinetuneTask(pl.LightningModule):
-    """
-    PyTorch Lightning module for fine-tuning a classification model, with support for:
+    """PyTorch LightningModule for EMG fine-tuning tasks.
 
-    - Classification types:
-        - `bc`: Binary Classification
-        - `ml`: Multi-Label Classification
+    This module manages the training, validation, and testing for both
+    classification (gesture detection) and regression (kinematic tracking) tasks.
+    It supports modular model architectures, metric collections, and layer-wise learning rate decay.
 
-    - Metric logging during training, validation, and testing, including accuracy, precision, recall, F1 score, AUROC, and more
-    - Optional input normalization with configurable normalization functions
-    - Custom optimizer support including SGD, Adam, AdamW, and LAMB
-    - Learning rate schedulers with configurable scheduling strategies
-    - Layer-wise learning rate decay for fine-grained learning rate control across model blocks
+    Attributes:
+        model (nn.Module): The instantiated neural network.
+        num_classes (int): Number of target classes or regression outputs.
+        classification_type (str): Format of classification (e.g., 'bc', 'ml').
+        task (str): The specific task type ('classification' or 'regression').
+        normalize (bool): Whether input normalization is enabled.
+        criterion (nn.Module): The loss function (CrossEntropy or L1).
     """
 
     def __init__(self, hparams: DictConfig):
-        """
-        Initialize the FinetuneTask module.
+        """Initializes the FinetuneTask with Hydra configurations.
+
+        Sets up the model, loss functions, and metric collections based on the
+        provided task type.
 
         Args:
-            hparams (DictConfig): Hyperparameters and configuration loaded via Hydra.
+            hparams (DictConfig): Configuration object containing 'model',
+                'optimizer', 'scheduler', and 'finetuning' parameters.
         """
         super().__init__()
         self.save_hyperparameters(hparams)
         self.model = hydra.utils.instantiate(self.hparams.model)
         self.num_classes = self.hparams.model.num_classes
         self.classification_type = self.hparams.model.classification_type
+        self.task = self.hparams.model.task
 
         # Enable normalization if specified in parameters
         self.normalize = False
@@ -74,70 +80,100 @@ class FinetuneTask(pl.LightningModule):
             self.normalize = True
             self.normalize_fct = MinMaxNormalization()
 
-        # Loss function
-        self.criterion = nn.CrossEntropyLoss(label_smoothing=0.10)
+        if self.task == "regression":
+            self.criterion = nn.L1Loss()
 
-        # Classification mode detection
-        if not isinstance(self.num_classes, int):
-            raise TypeError("Number of classes must be an integer.")
-        elif self.num_classes < 2:
-            raise ValueError("Number of classes must be at least 2.")
-        elif self.num_classes == 2:
-            self.classification_task = "binary"
+            # Metric
+            mean_metrics = MetricCollection(
+            {
+                "rmse": MeanSquaredError(squared=False),
+                "mae": MeanAbsoluteError(),
+            }
+            )
+            scalar_metrics = MetricCollection(
+                {
+                    "r2": R2Score(num_outputs=self.num_classes, multioutput="uniform_average"),
+                }
+            )
+
+            self.train_mean_metrics = mean_metrics.clone(prefix="train/")
+            self.train_scalar_metrics = scalar_metrics.clone(prefix="train/")
+            self.val_mean_metrics = mean_metrics.clone(prefix="val/")
+            self.val_scalar_metrics = scalar_metrics.clone(prefix="val/")
+            self.test_mean_metrics = mean_metrics.clone(prefix="test/")
+            self.test_scalar_metrics = scalar_metrics.clone(prefix="test/")
+
         else:
-            self.classification_task = "multiclass"
+            # Loss function
+            self.criterion = nn.CrossEntropyLoss(label_smoothing=0.10)
 
-        # Metrics
-        label_metrics = MetricCollection(
-            {
-                "micro_acc": Accuracy(
-                    task=self.classification_task,
-                    num_classes=self.num_classes,
-                    average="micro",
-                ),
-                "macro_acc": Accuracy(
-                    task=self.classification_task,
-                    num_classes=self.num_classes,
-                    average="macro",
-                ),
-                "recall": Recall(task="multiclass", num_classes=self.num_classes, average="macro"),
-                "precision": Precision(
-                    task=self.classification_task,
-                    num_classes=self.num_classes,
-                    average="macro",
-                ),
-                "f1": F1Score(
-                    task=self.classification_task,
-                    num_classes=self.num_classes,
-                    average="macro",
-                ),
-                "cohen_kappa": CohenKappa(task=self.classification_task, num_classes=self.num_classes),
-            }
-        )
-        logit_metrics = MetricCollection(
-            {
-                "auroc": AUROC(
-                    task=self.classification_task,
-                    num_classes=self.num_classes,
-                    average="macro",
-                ),
-                "average_precision": AveragePrecision(
-                    task=self.classification_task,
-                    num_classes=self.num_classes,
-                    average="macro",
-                ),
-            }
-        )
-        self.train_label_metrics = label_metrics.clone(prefix="train/")
-        self.val_label_metrics = label_metrics.clone(prefix="val/")
-        self.test_label_metrics = label_metrics.clone(prefix="test/")
-        self.train_logit_metrics = logit_metrics.clone(prefix="train/")
-        self.val_logit_metrics = logit_metrics.clone(prefix="val/")
-        self.test_logit_metrics = logit_metrics.clone(prefix="test/")
+            # Classification mode detection
+            if not isinstance(self.num_classes, int):
+                raise TypeError("Number of classes must be an integer.")
+            elif self.num_classes < 2:
+                raise ValueError("Number of classes must be at least 2.")
+            elif self.num_classes == 2:
+                self.classification_task = "binary"
+            else:
+                self.classification_task = "multiclass"
 
-    def load_pretrained_checkpoint(self, model_ckpt):
-        """
-        Load a pretrained model checkpoint and unfreeze specific layers for fine-tuning.
+            # Metrics
+            label_metrics = MetricCollection(
+                {
+                    "micro_acc": Accuracy(
+                        task=self.classification_task,
+                        num_classes=self.num_classes,
+                        average="micro",
+                    ),
+                    "macro_acc": Accuracy(
+                        task=self.classification_task,
+                        num_classes=self.num_classes,
+                        average="macro",
+                    ),
+                    "recall": Recall(task="multiclass", num_classes=self.num_classes, average="macro"),
+                    "precision": Precision(
+                        task=self.classification_task,
+                        num_classes=self.num_classes,
+                        average="macro",
+                    ),
+                    "f1": F1Score(
+                        task=self.classification_task,
+                        num_classes=self.num_classes,
+                        average="macro",
+                    ),
+                    "cohen_kappa": CohenKappa(task=self.classification_task, num_classes=self.num_classes),
+                }
+            )
+            logit_metrics = MetricCollection(
+                {
+                    "auroc": AUROC(
+                        task=self.classification_task,
+                        num_classes=self.num_classes,
+                        average="macro",
+                    ),
+                    "average_precision": AveragePrecision(
+                        task=self.classification_task,
+                        num_classes=self.num_classes,
+                        average="macro",
+                    ),
+                }
+            )
+            self.train_label_metrics = label_metrics.clone(prefix="train/")
+            self.val_label_metrics = label_metrics.clone(prefix="val/")
+            self.test_label_metrics = label_metrics.clone(prefix="test/")
+            self.train_logit_metrics = logit_metrics.clone(prefix="train/")
+            self.val_logit_metrics = logit_metrics.clone(prefix="val/")
+            self.test_logit_metrics = logit_metrics.clone(prefix="test/")
+
+
+    def load_pretrained_checkpoint(self, model_ckpt: str) -> None:
+        """Loads a pretrained PyTorch Lightning checkpoint (.ckpt).
+
+        This method loads the state dict, optionally freezes layers based on configuration,
+        and ensures the model head remains trainable for fine-tuning.
+
+        Args:
+            model_ckpt (str): Path to the .ckpt file.
         """
         assert self.model.model_head is not None
         print("Loading pretrained checkpoint from .ckpt file")
@@ -152,9 +188,11 @@ class FinetuneTask(pl.LightningModule):
 
         print("Pretrained model ready.")
 
-    def load_safetensors_checkpoint(self, model_ckpt):
-        """
-        Load a pretrained model checkpoint in safetensors format and unfreeze specific layers for fine-tuning.
+    def load_safetensors_checkpoint(self, model_ckpt: str) -> None:
+        """Loads a pretrained model checkpoint in safetensors format.
+
+        Args:
+            model_ckpt (str): Path to the .safetensors file.
         """
         assert self.model.model_head is not None
         print("Loading pretrained safetensors checkpoint")
@@ -169,29 +207,31 @@ class FinetuneTask(pl.LightningModule):
 
         print("Pretrained model ready.")
 
-    def generate_fake_mask(self, batch_size, C, T):
-        """
-        Create a dummy mask tensor to simulate attention masking.
+    def generate_fake_mask(self, batch_size: int, C: int, T: int) -> torch.Tensor:
+        """Creates a dummy boolean mask tensor to simulate attention masking.
 
         Args:
-            batch_size (int): Number of samples.
+            batch_size (int): Batch size (B).
             C (int): Number of channels.
-            T (int): Temporal dimension.
+            T (int): Sequence length (tokens).
 
         Returns:
-            torch.Tensor: Boolean mask tensor of shape (B, C, T).
+            torch.Tensor: Boolean mask of shape (B, C, T) initialized to False.
         """
         return torch.zeros(batch_size, C, T, dtype=torch.bool).to(self.device)
 
     def _step(self, X: torch.Tensor, mask: Optional[torch.Tensor] = None) -> dict:
-        """
-        Perform forward pass and post-process predictions.
+        """Performs a forward pass and extracts probabilities and labels.
 
         Args:
-            X (torch.Tensor): Input tensor.
+            X (torch.Tensor): Input EMG tensor of shape (B, C, T).
+            mask (Optional[torch.Tensor]): Attention mask. Defaults to None.
 
         Returns:
-            dict: Dictionary containing predicted labels, probabilities, and logits.
+            dict: Dictionary with keys "label", "probs", and "logits".
+
+        Raises:
+            NotImplementedError: If classification_type is not 'bc' or 'ml'.
         """
         y_pred_logits, _ = self.model(X, mask=mask)
 
@@ -217,10 +257,18 @@ class FinetuneTask(pl.LightningModule):
         y_pred = self._step(X, mask=mask)
         loss = self.criterion(y_pred["logits"], y)
 
-        self.train_label_metrics(y_pred["label"], y)
-        self.train_logit_metrics(self._handle_binary(y_pred["logits"]), y)
-        self.log_dict(self.train_label_metrics, on_step=True, on_epoch=False)
-        self.log_dict(self.train_logit_metrics, on_step=True, on_epoch=False)
+        if self.task == "regression":
+            logits_flat = y_pred["logits"].reshape(-1, self.num_classes)  # (B*T, num_classes)
+            y_flat = y.reshape(-1, self.num_classes)  # (B*T, num_classes)
+            self.train_mean_metrics(logits_flat, y_flat)
+            self.train_scalar_metrics(logits_flat, y_flat)
+            self.log_dict(self.train_mean_metrics, on_step=True, on_epoch=False)
+            self.log_dict(self.train_scalar_metrics, on_step=True, on_epoch=False)
+        else:
+            self.train_label_metrics(y_pred["label"], y)
+            self.train_logit_metrics(self._handle_binary(y_pred["logits"]), y)
+            self.log_dict(self.train_label_metrics, on_step=True, on_epoch=False)
+            self.log_dict(self.train_logit_metrics, on_step=True, on_epoch=False)
         self.log(
             "train_loss",
             loss,
@@ -241,10 +289,18 @@ class FinetuneTask(pl.LightningModule):
         y_pred = self._step(X, mask=mask)
         loss = self.criterion(y_pred["logits"], y)
 
-        self.val_label_metrics(y_pred["label"], y)
-        self.val_logit_metrics(self._handle_binary(y_pred["logits"]), y)
-        self.log_dict(self.val_label_metrics, on_step=False, on_epoch=True)
-        self.log_dict(self.val_logit_metrics, on_step=False, on_epoch=True)
+        if self.task == "regression":
+            logits_flat = y_pred["logits"].reshape(-1, self.num_classes)  # (B*T, num_classes)
+            y_flat = y.reshape(-1, self.num_classes)  # (B*T, num_classes)
+            self.val_mean_metrics(logits_flat, y_flat)
+            self.val_scalar_metrics(logits_flat, y_flat)
+            self.log_dict(self.val_mean_metrics, on_step=False, on_epoch=True)
+            self.log_dict(self.val_scalar_metrics, on_step=False, on_epoch=True)
+        else:
+            self.val_label_metrics(y_pred["label"], y)
+            self.val_logit_metrics(self._handle_binary(y_pred["logits"]), y)
+            self.log_dict(self.val_label_metrics, on_step=False, on_epoch=True)
+            self.log_dict(self.val_logit_metrics, on_step=False, on_epoch=True)
         self.log("val_loss", loss, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
@@ -257,25 +313,41 @@ class FinetuneTask(pl.LightningModule):
         y_pred = self._step(X, mask=mask)
         loss = self.criterion(y_pred["logits"], y)
 
-        self.test_label_metrics(y_pred["label"], y)
-        self.test_logit_metrics(self._handle_binary(y_pred["logits"]), y)
-        self.log_dict(self.test_label_metrics, on_step=False, on_epoch=True)
-        self.log_dict(self.test_logit_metrics, on_step=False, on_epoch=True)
+        if self.task == "regression":
+            logits_flat = y_pred["logits"].reshape(-1, self.num_classes)  # (B*T, num_classes)
+            y_flat = y.reshape(-1, self.num_classes)  # (B*T, num_classes)
+            self.test_mean_metrics(logits_flat, y_flat)
+            self.test_scalar_metrics(logits_flat, y_flat)
+            self.log_dict(self.test_mean_metrics, on_step=False, on_epoch=True)
+            self.log_dict(self.test_scalar_metrics, on_step=False, on_epoch=True)
+        else:
+            self.test_label_metrics(y_pred["label"], y)
+            self.test_logit_metrics(self._handle_binary(y_pred["logits"]), y)
+            self.log_dict(self.test_label_metrics, on_step=False, on_epoch=True)
+            self.log_dict(self.test_logit_metrics, on_step=False, on_epoch=True)
         self.log("test_loss", loss, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
-    def lr_scheduler_step(self, scheduler, metric):
-        """
-        Custom scheduler step function for step-based LR schedulers
+    def lr_scheduler_step(self, scheduler: torch.optim.lr_scheduler._LRScheduler, metric: Optional[torch.Tensor]) -> None:
+        """Custom scheduler step logic for step-based schedulers.
+
+        Args:
+            scheduler (torch.optim.lr_scheduler._LRScheduler): The optimizer scheduler.
+            metric (Optional[torch.Tensor]): Optional metric for ReduceLROnPlateau.
         """
         scheduler.step(epoch=self.current_epoch)
 
-    def configure_optimizers(self):
-        """
-        Configure the optimizer and learning rate scheduler.
+    def configure_optimizers(self) -> dict:
+        """Configures optimizers and learning rate schedulers.
+
+        Implements layer-wise learning rate decay for the Transformer encoder/Mamba blocks,
+        ensuring lower layers decay more than the head.
 
         Returns:
-            dict: Configuration dictionary with optimizer and LR scheduler.
+            dict: Configuration for the PyTorch Lightning trainer.
+
+        Raises:
+            NotImplementedError: If the optimizer name is not supported.
         """
         num_blocks = self.hparams.model.n_layer
         params_to_pass = []
@@ -327,15 +399,14 @@ class FinetuneTask(pl.LightningModule):
 
         return {"optimizer": optimizer, "lr_scheduler": lr_scheduler_config}
 
-    def _handle_binary(self, preds):
-        """
-        Special handling for binary classification probabilities.
+    def _handle_binary(self, preds: torch.Tensor) -> torch.Tensor:
+        """Slices logits for binary classification task.
 
         Args:
-            preds (torch.Tensor): Logit outputs.
+            preds (torch.Tensor): Logit outputs from the model.
 
         Returns:
-            torch.Tensor: Probabilities for the positive class.
+            torch.Tensor: Logits/probabilities for the positive class if binary, else full preds.
         """
         if self.classification_task == "binary" and self.classification_type != "mc":
             return preds[:, 1].squeeze()

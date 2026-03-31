@@ -41,7 +41,7 @@ finetuning:
   freeze_layers: False
 
 io:
-  base_output_path: ${env:DATA_PATH}
+  base_output_path: ${env:LOG_DIR}
   checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
   version: 0
 
@@ -98,3 +98,7 @@ scheduler:
   warmup_epochs: 5
   total_training_opt_steps: ${max_epochs}
   t_in_epochs: True
+
+wandb:
+  project: "TinyMyo"
+  save_dir: ${env:LOG_DIR}

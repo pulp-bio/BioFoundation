@@ -32,7 +32,7 @@ import torch.distributed as dist
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning.strategies import DDPStrategy
 
 from biofoundation.core.environment import require_environment
@@ -59,6 +59,18 @@ def train(cfg: DictConfig):
     tb_logger = TensorBoardLogger(
         save_dir=osp.expanduser(cfg.io.base_output_path), name=cfg.tag, version=version
     )
+
+    loggers = [tb_logger]
+
+    # Weights & Biases
+    if cfg.wandb:
+        wandb_logger = WandbLogger(
+            name=version,
+            project=cfg.wandb.project,
+            log_model="all",
+            save_dir=cfg.wandb.save_dir,
+        )
+        loggers.append(wandb_logger)
 
     # DataLoader
     print("===> Loading datasets")
@@ -109,14 +121,14 @@ def train(cfg: DictConfig):
         del cfg.trainer.strategy
         trainer = Trainer(
             **cfg.trainer,
-            logger=tb_logger,
+            logger=loggers,
             callbacks=callbacks,
             strategy=DDPStrategy(find_unused_parameters=cfg.find_unused_parameters),
         )
     else:
         trainer = Trainer(
             **cfg.trainer,
-            logger=tb_logger,
+            logger=loggers,
             callbacks=callbacks,
         )
 

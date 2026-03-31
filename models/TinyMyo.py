@@ -279,7 +279,7 @@ class RotarySelfAttentionBlock(nn.Module):
             v,
             dropout_p=self.attn_drop if self.training else 0.0,
             is_causal=False,
-            enable_gqa=False,
+            #enable_gqa=False,
         )
 
         x = x.transpose(2, 1).reshape(B, N, C)

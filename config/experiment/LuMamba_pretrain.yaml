@@ -1,0 +1,138 @@
+# @package _global_
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2025 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  Danaé Broustail                                                    *
+#* Author:  Thorir Mar Ingolfsson                                             *
+#*----------------------------------------------------------------------------*
+tag: LuMamba_pretrain
+model_size: tiny
+gpus: 4
+num_nodes: 4
+num_workers: 10
+batch_size: 2040
+
+training: True
+final_validate: False
+final_test: False
+resume: False
+
+pretrained_checkpoint_path: null
+
+io:
+  base_output_path: ${env:CHECKPOINT_DIR}/logs
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  version: ${tag}_${model_size}
+
+defaults:
+  - override /data_module: multiloader_data_module
+  - override /model: LuMamba_pretrain
+  - override /scheduler: cosine
+  - override /task: pretrain_task_LUNA
+  - override /criterion: pretrain_criterion
+
+data_module:
+    _target_: 'data_module.multiloader_data_module.VaryingChannelsDataModule'
+    name: "eeg"
+    cfg:
+      num_workers: ${num_workers}
+      batch_size: ${batch_size}
+    train_val_split_ratio: 0.8
+    ## t-SNE logging datasets (comment out section to skip t-SNE logging)
+    max_samples: 1000 # max samples for each tSNE evaluation dataset (tuar_loader and tuab_loader)
+    tuar_loader:
+      train:
+        _target_: 'datasets.tuh_dataset.TUH_Dataset'
+        hdf5_file: '#CHANGEME' # path to TUAR dataset train split
+        num_channels: 22
+        finetune: True
+      test:
+        _target_: 'datasets.tuh_dataset.TUH_Dataset'
+        hdf5_file: '#CHANGEME' # path to TUAB dataset test split
+        num_channels: 22
+        finetune: True
+      val:
+        _target_: 'datasets.tuh_dataset.TUH_Dataset'
+        hdf5_file: '#CHANGEME' # path to TUAB dataset validation split
+        num_channels: 22
+        finetune: True
+    tuab_loader:
+      test:
+        _target_: 'datasets.tuh_dataset.TUH_Dataset'
+        hdf5_file: '#CHANGEME' # path to TUAB dataset test split
+        num_channels: 22
+        finetune: True
+    ## END t-SNE logging datasets (comment out section to skip t-SNE logging)
+
+query_specialization_criterion:
+  loss_type: 'l2'
+  loss_coeff: 0.8
+
+# le jepa parameters
+le_jepa:
+    use_lejepa: false
+    use_lejepa_only: false
+    num_global_views: 2
+    num_local_views: 4
+    num_patches_local: 4
+    num_patches_global: 16
+    lambd_lejepa: 0.002
+    num_slices: 128
+    lejepa_scaling_factor: 0.05
+
+model: 
+  drop_path: 0.0 # Stochastic depth disabled for pretraining
+  num_classes: 0 # No classification head for pretraining
+
+masking:
+  patch_size: [1, 40]
+  masking_ratio: 0.5
+  unmasked_loss_coeff: 0.05
+
+input_normalization:
+  normalize: True
+
+scheduler:
+  trainer: ${trainer}
+  min_lr: 2.5e-7 # minimum LR for the cosine scheduler
+  warmup_lr_init: 2.5e-7 # initial LR for the warmup phase 
+  warmup_epochs: 5
+
+trainer:
+  enable_model_summary: True
+  accelerator: gpu
+  num_nodes: ${num_nodes}
+  devices: ${gpus}
+  max_epochs: 10
+  strategy: ddp
+  accumulate_grad_batches: 1
+  log_every_n_steps: 5
+  check_val_every_n_epoch: 5
+  use_distributed_sampler: False
+  precision: bf16-mixed
+  gradient_clip_val: 1.0
+
+model_checkpoint:
+  save_last: True
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+
+optimizer:
+  optim: 'AdamW'
+  lr: 1.25e-4
+  betas: [0.9, 0.98]
+  weight_decay: 0.05

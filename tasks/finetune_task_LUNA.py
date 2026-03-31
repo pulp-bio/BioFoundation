@@ -30,6 +30,7 @@ from torchmetrics.classification import (
     AveragePrecision, CohenKappa, F1Score
 )
 from safetensors.torch import load_file
+from collections import OrderedDict
 
 class ChannelWiseNormalize:
     def __init__(self, eps=1e-8):
@@ -122,8 +123,16 @@ class FinetuneTask(pl.LightningModule):
         state_dict = ckpt['state_dict']
         # Remove decoder head and channel embedding weights since they are not needed for fine-tuning
         state_dict = {k: v for k, v in state_dict.items() if 'decoder_head' not in k and "channel_emb" not in k}
-        ckpt['state_dict'] = state_dict
-        self.model.load_state_dict(ckpt['state_dict'], strict=False)
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            new_key = k.replace("model.", "")
+            new_state_dict[new_key] = v
+
+        ckpt['state_dict'] = new_state_dict
+        missing_keys, unexpected_keys = self.model.load_state_dict(ckpt['state_dict'], strict=False)
+
+        print("Missing keys when loading pretrained checkpoint:", missing_keys)
+        print("Unexpected keys when loading pretrained checkpoint:", unexpected_keys)        
 
         for name, param in self.model.named_parameters():
             if self.hparams.finetuning.freeze_layers:
@@ -140,8 +149,21 @@ class FinetuneTask(pl.LightningModule):
         assert self.model.classifier is not None
         print("Loading pretrained safetensors checkpoint")
         state_dict = load_file(model_ckpt)
-        state_dict = {k: v for k, v in state_dict.items() if 'decoder_head' not in k and "channel_emb" not in k}
-        self.load_state_dict(state_dict, strict=False)
+        
+        # add model. prefix if needed
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            if not k.startswith("model."):
+                new_key = "model." + k
+            else:
+                new_key = k
+            new_state_dict[new_key] = v
+
+        state_dict = {k: v for k, v in new_state_dict.items() if 'decoder_head' not in k and "channel_emb" not in k}
+        missing_keys, unexpected_keys = self.load_state_dict(state_dict, strict=False)
+
+        print("Missing keys when loading pretrained safetensors:", missing_keys)
+        print("Unexpected keys when loading pretrained safetensors:", unexpected_keys)    
 
 
         for name, param in self.model.named_parameters():
@@ -286,7 +308,13 @@ class FinetuneTask(pl.LightningModule):
         Returns:
             dict: Configuration dictionary with optimizer and LR scheduler.
         """
-        num_blocks = self.hparams.model.depth
+        if hasattr(self.hparams.model, 'depth'):
+            num_blocks = self.hparams.model.depth # LUNA version
+        elif hasattr(self.hparams.model, 'num_blocks'):
+            num_blocks = self.hparams.model.num_blocks # LuMamba version
+        else:
+            num_blocks = None # LUNA version
+            
         params_to_pass = []
         base_lr = self.hparams.optimizer.lr
         decay_factor = self.hparams.layerwise_lr_decay

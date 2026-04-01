@@ -67,7 +67,7 @@ defaults:
   - override /data_module: finetune_data_module 
   - override /model: LuMamba_tiny
   - override /scheduler: cosine
-  - override /task: finetune_task_LUNA # override with "finetune_regression_task_LuMamba" for regression tasks
+  - override /task: "#CHANGEME" # override with "finetune_task_LUNA" for classification and "finetune_regression_task_LuMamba" for regression tasks
   - override /criterion: finetune_criterion
 
 # Change _target_ to corresponding dataset class for finetuning dataset
@@ -89,13 +89,9 @@ data_module:
     # channel_subset: False # applicable to MoBI and MODMA datasets; set to True to use a subset of the channels
 
 model:
+  num_classes: 2 # Change for corresponding finetuning dataset
   classification_type: ${classification_type} # Options: "mcc" for multi-class classification and regression, "bc" for binary classification.
   classifier_option: null  # Options: "mamba", "linear", None
-
-le_jepa:
-  use_lejepa: False
-  use_lejepa_only: False
-  num_slices: 128
 
 trainer:
   enable_model_summary: True
@@ -104,7 +100,7 @@ trainer:
   devices: ${gpus}
   strategy: ddp
   max_epochs: 50
-  precision: 16-mixed
+  precision: bf16-mixed
 
 model_checkpoint:
   save_last: True

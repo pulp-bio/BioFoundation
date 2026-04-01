@@ -20,7 +20,6 @@
 import torch
 import h5py
 import numpy as np
-from datasets.seed_v_redo_dataset import SEED_CHANNEL_LIST
 from models.modules.channel_embeddings import get_channel_indices, get_channel_locations
 
 MoBI_CHANNEL_ORDER = ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'FC5', 'FC1', 'FC2', 'FC6', 

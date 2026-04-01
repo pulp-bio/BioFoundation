@@ -17,12 +17,31 @@
 #* Author:  Danaé Broustail                                                        *
 #* Author:  Thorir Mar Ingolfsson                                             *
 #*----------------------------------------------------------------------------*
-from models.FEMBA import MambaWrapper, PatchEmbed, MambaClassifier, Decoder, BasicLinearClassifier
+from models.FEMBA import MambaWrapper, PatchEmbed, MambaClassifier, Decoder
 from models.LUNA import *
 import torch.nn as nn
 import torch
 from typing import Tuple
 from mamba_ssm import Mamba
+
+class BasicLinearClassifier(nn.Module):
+    def __init__(self, embed_dim, grid_size, num_classes):
+        super(BasicLinearClassifier, self).__init__()
+        self.grid_size = grid_size
+        self.embed_dim = embed_dim
+        self.num_classes = num_classes
+
+        self.fc1 = nn.Linear(embed_dim * grid_size[0], num_classes)
+        self.activation1 = nn.GELU()
+
+    def forward(self, x):
+        # Input x shape: (B, T=grid_size[1], D=embed_dim * grid_size[0])
+        x=x.permute(0,2,1) 
+        x = x.mean(dim=-1)  # Temporal Pooling -> output: (B, embed_dim * grid_size[0])
+
+        # First linear layer: embed_size * grid_size[0] -> num_classes
+        x = self.fc1(x)
+        x = self.activation1(x)
 
 class LuMamba(LUNA):
     def __init__(self, 

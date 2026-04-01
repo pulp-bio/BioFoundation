@@ -39,9 +39,9 @@ io:
 
 defaults:
   - override /data_module: multiloader_data_module
-  - override /model: LuMamba_pretrain
+  - override /model: LuMamba_tiny
   - override /scheduler: cosine
-  - override /task: pretrain_task_LUNA
+  - override /task: pretrain_task_LuMamba
   - override /criterion: pretrain_criterion
 
 data_module:
@@ -61,12 +61,12 @@ data_module:
         finetune: True
       test:
         _target_: 'datasets.tuh_dataset.TUH_Dataset'
-        hdf5_file: '#CHANGEME' # path to TUAB dataset test split
+        hdf5_file: '#CHANGEME' # path to TUAR dataset test split
         num_channels: 22
         finetune: True
       val:
         _target_: 'datasets.tuh_dataset.TUH_Dataset'
-        hdf5_file: '#CHANGEME' # path to TUAB dataset validation split
+        hdf5_file: '#CHANGEME' # path to TUAR dataset validation split
         num_channels: 22
         finetune: True
     tuab_loader:
@@ -117,7 +117,7 @@ trainer:
   num_nodes: ${num_nodes}
   devices: ${gpus}
   max_epochs: 10
-  strategy: ddp
+  strategy: ddp #CHANGEME switch to "ddp_find_unused_parameters_true" for LeJEPA-only pretraining
   accumulate_grad_batches: 1
   log_every_n_steps: 5
   check_val_every_n_epoch: 5

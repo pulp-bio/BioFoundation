@@ -96,7 +96,7 @@ Larger model sizes can be attained by increasing the number of bi-Mamba blocks `
 - **Pre-training**
   - **Dataset:** TUEG corpus (>21,000 hours).
   - **Optimizer:** AdamW, lr = $1.25 \times 10^{-4}$, cosine decay.
-  - **Losses:** Smooth L1 reconstruction loss and query specialization loss as the original LUNA pre-training. Other variant include: mixed LeJEPA-reconstruction loss and LeJEPA, and LeJEPA-only pre-training.
+  - **Losses:** Smooth L1 reconstruction loss and query specialization loss (part of original LUNA pre-training). Other variant include: **mixed LeJEPA-reconstruction** pre-training, and **LeJEPA-only** pre-training.
     - Mask Ratio: 60%.
 
 - **Fine-tuning**  
@@ -112,7 +112,7 @@ Larger model sizes can be attained by increasing the number of bi-Mamba blocks `
     - **APAVA:** 15/4/4 subjects for train/validation/test
     - **TDBrain:** 34/8/8 subjects for train/validation/test
     - **MODMA:** 15 depressed patients and 15 controls for training, and 7 normal and 5 depressed for validation and testing.
-    - **Mumtaz:** 24 depressed and 19 controls for training, 5 depressed and 4 controls for validation, 5 depressed and 5 controls for testing.
+    - **Mumtaz2016:** 24 depressed and 19 controls for training, 5 depressed and 4 controls for validation, 5 depressed and 5 controls for testing.
     - **MoBI:** 10min/5min/5min split of each walking session for train/validation /test. A stride of 50ms is applied to generate samples. Target values for a sample are averaged over the final 50ms of the sample.
 
 - **Visualization logs**  

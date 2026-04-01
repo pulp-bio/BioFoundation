@@ -52,6 +52,10 @@ io:
   version: 0
   base_output_path: "#CHANGEME"
 
+hydra:
+  run:
+    dir: ${env:CHECKPOINT_DIR}/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
 trainer:
   num_nodes: ${num_nodes}
   devices: ${gpus}

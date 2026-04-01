@@ -91,7 +91,7 @@ data_module:
 model:
   num_classes: 2 # Change for corresponding finetuning dataset
   classification_type: ${classification_type} # Options: "mcc" for multi-class classification and regression, "bc" for binary classification.
-  classifier_option: null  # Options: "mamba", "linear", None
+  classifier_option: null  # Options: "mamba", "linear". "None" defaults to LUNA classifier.
 
 trainer:
   enable_model_summary: True

@@ -17,40 +17,29 @@
 #*                                                                            *
 #* Author:  Matteo Fasulo                                                     *
 #*----------------------------------------------------------------------------*
-tag: EMG_finetune
+tag: EMG_pretrain
 
 gpus: -1
 num_nodes: 1
 num_workers: 8
-batch_size: 32
+batch_size: 128
 max_epochs: 50
 
-training: True
 final_validate: True
-final_test: True
-finetune_pretrained: True
-resume: False
-
-layerwise_lr_decay: 0.90
-scheduler_type: cosine
+final_test: False
 
 pretrained_checkpoint_path: null
-pretrained_safetensors_path: null
-
-finetuning:
-  freeze_layers: False
-
 io:
   base_output_path: ${env:LOG_DIR}
   checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
   version: 0
 
 defaults:
-  - override /data_module: emg_finetune_data_module
-  - override /model: TinyMyo_finetune
+  - override /data_module: emg_pretrain_data_module
+  - override /model: TinyMyo_pretrain
   - override /scheduler: cosine
-  - override /task: finetune_task_TinyMyo
-  - override /criterion: finetune_criterion
+  - override /task: pretrain_task_TinyMyo
+  - override /criterion: pretrain_criterion
 
 masking:
   patch_size: [1, 20]
@@ -58,11 +47,18 @@ masking:
   unmasked_loss_coeff: 0.1
 
 input_normalization:
-  normalize: False
+  normalize: True
 
 model:
-  num_classes: 6
-  classification_type: "ml"
+  n_layer: 4
+
+scheduler:
+  trainer: ${trainer}
+  min_lr: 1e-6
+  warmup_lr_init: 1e-6
+  warmup_epochs: 10
+  total_training_opt_steps: ${max_epochs}
+  t_in_epochs: True
 
 trainer:
   accelerator: gpu
@@ -70,6 +66,8 @@ trainer:
   devices: ${gpus}
   strategy: auto
   max_epochs: ${max_epochs}
+  gradient_clip_val: 3
+  accumulate_grad_batches: 8
 
 model_checkpoint:
   save_last: True
@@ -77,27 +75,11 @@ model_checkpoint:
   mode: "min"
   save_top_k: 1
 
-callbacks:
-  early_stopping:
-    _target_: 'pytorch_lightning.callbacks.EarlyStopping'
-    monitor: "val_loss"
-    patience: 7
-    mode: "min"
-    verbose: True
-
 optimizer:
   optim: 'AdamW'
-  lr: 5e-4
+  lr: 1e-4
   betas: [0.9, 0.98]
   weight_decay: 0.01
-
-scheduler:
-  trainer: ${trainer}
-  min_lr: 1e-5
-  warmup_lr_init: 1e-5
-  warmup_epochs: 5
-  total_training_opt_steps: ${max_epochs}
-  t_in_epochs: True
 
 wandb:
   entity: "TinyMyo"

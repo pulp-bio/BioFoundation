@@ -66,6 +66,7 @@ def train(cfg: DictConfig):
     if cfg.wandb:
         wandb_logger = WandbLogger(
             name=version,
+            entity=cfg.wandb.entity,
             project=cfg.wandb.project,
             log_model="all",
             save_dir=cfg.wandb.save_dir,

@@ -426,15 +426,6 @@ class EMGClassificationHead(nn.Module):
 
         self.classifier = nn.Linear(feat_dim, self.num_classes)
 
-        # init weights
-        self.apply(self._init_weights)
-
-    def _init_weights(self, m: nn.Module):
-        if isinstance(m, nn.Linear):
-            torch.nn.init.xavier_uniform_(m.weight)
-            if isinstance(m, nn.Linear) and m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -527,15 +518,6 @@ class EMGRegressionHead(nn.Module):
             nn.Conv1d(self.hidden_dim, self.output_dim, kernel_size=1),
         )
 
-        # Initialize weights
-        self.apply(self._init_weights)
-
-    def _init_weights(self, m):
-        if isinstance(m, nn.Conv1d):
-            nn.init.kaiming_uniform_(m.weight, nonlinearity="relu")
-            if m.bias is not None:
-                nn.init.zeros_(m.bias)
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the model.
@@ -620,6 +602,7 @@ class TinyMyo(nn.Module):
 
     def __post_init__(self):
         super().__init__()
+
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
 
         self.patch_embedding = PatchingModule(
@@ -685,7 +668,6 @@ class TinyMyo(nn.Module):
         trunc_normal_(self.mask_token, std=0.02)
 
         self.apply(self._init_weights)
-        self.fix_init_weight()
 
     def _init_weights(self, m):
         """Initializes the model weights."""
@@ -697,25 +679,6 @@ class TinyMyo(nn.Module):
         elif isinstance(m, nn.LayerNorm):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
-
-    def fix_init_weight(self):
-        """
-        Rescales the weights of attention and MLP layers to improve training stability.
-
-        For each layer, weights are divided by sqrt(2 * layer_id).
-        """
-
-        def rescale(param, layer_id):
-            param.div_(math.sqrt(2.0 * layer_id))
-
-        for layer_id, layer in enumerate(self.blocks, start=1):
-            attn_proj = getattr(getattr(layer, "attn", None), "proj", None)
-            if attn_proj is not None:
-                rescale(attn_proj.weight.data, layer_id)
-
-            mlp_fc2 = getattr(getattr(layer, "mlp", None), "fc2", None)
-            if mlp_fc2 is not None:
-                rescale(mlp_fc2.weight.data, layer_id)
 
     def prepare_tokens(
         self, x_signal: torch.Tensor, mask: Optional[torch.Tensor] = None

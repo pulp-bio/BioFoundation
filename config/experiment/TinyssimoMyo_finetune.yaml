@@ -61,8 +61,14 @@ input_normalization:
   normalize: False
 
 model:
+  n_layer: 4
+  attn_drop: 0.1
+  proj_drop: 0.1
+  drop_path: 0.1
   num_classes: 6
+  task: "classification"
   classification_type: "ml"
+  reduction_type: "concat"
 
 trainer:
   accelerator: gpu
@@ -89,12 +95,12 @@ optimizer:
   optim: 'AdamW'
   lr: 5e-4
   betas: [0.9, 0.98]
-  weight_decay: 0.01
+  weight_decay: 1e-2
 
 scheduler:
   trainer: ${trainer}
   min_lr: 1e-5
-  warmup_lr_init: 1e-5
+  warmup_lr_init: 1e-6
   warmup_epochs: 5
   total_training_opt_steps: ${max_epochs}
   t_in_epochs: True

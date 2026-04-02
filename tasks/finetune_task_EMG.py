@@ -22,7 +22,6 @@ import hydra
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import torch_optimizer as torch_optim
 from omegaconf import DictConfig
 from safetensors.torch import load_file
 from torchmetrics import MetricCollection
@@ -85,27 +84,19 @@ class FinetuneTask(pl.LightningModule):
 
             # Metric
             mean_metrics = MetricCollection(
-            {
-                "rmse": MeanSquaredError(squared=False),
-                "mae": MeanAbsoluteError(),
-            }
-            )
-            scalar_metrics = MetricCollection(
                 {
-                    "r2": R2Score(num_outputs=self.num_classes, multioutput="uniform_average"),
+                    "rmse": MeanSquaredError(squared=False),
+                    "mae": MeanAbsoluteError(),
                 }
             )
 
             self.train_mean_metrics = mean_metrics.clone(prefix="train/")
-            self.train_scalar_metrics = scalar_metrics.clone(prefix="train/")
             self.val_mean_metrics = mean_metrics.clone(prefix="val/")
-            self.val_scalar_metrics = scalar_metrics.clone(prefix="val/")
             self.test_mean_metrics = mean_metrics.clone(prefix="test/")
-            self.test_scalar_metrics = scalar_metrics.clone(prefix="test/")
 
         else:
             # Loss function
-            self.criterion = nn.CrossEntropyLoss(label_smoothing=0.10)
+            self.criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
             # Classification mode detection
             if not isinstance(self.num_classes, int):
@@ -179,7 +170,9 @@ class FinetuneTask(pl.LightningModule):
         print("Loading pretrained checkpoint from .ckpt file")
         checkpoint = torch.load(model_ckpt, map_location="cpu", weights_only=False)
         state_dict = checkpoint["state_dict"]
-        self.load_state_dict(state_dict, strict=False)
+        missing_keys, unexpected_keys = self.load_state_dict(state_dict, strict=False)
+        print(f"Missing keys when loading checkpoint: {missing_keys}")
+        print(f"Unexpected keys when loading checkpoint: {unexpected_keys}")
         for name, param in self.model.named_parameters():
             if self.hparams.finetuning.freeze_layers:
                 param.requires_grad = False
@@ -197,7 +190,9 @@ class FinetuneTask(pl.LightningModule):
         assert self.model.model_head is not None
         print("Loading pretrained safetensors checkpoint")
         state_dict = load_file(model_ckpt)
-        self.load_state_dict(state_dict, strict=False)
+        missing_keys, unexpected_keys = self.load_state_dict(state_dict, strict=False)
+        print(f"Missing keys when loading checkpoint: {missing_keys}")
+        print(f"Unexpected keys when loading checkpoint: {unexpected_keys}")
 
         for name, param in self.model.named_parameters():
             if self.hparams.finetuning.freeze_layers:
@@ -261,9 +256,7 @@ class FinetuneTask(pl.LightningModule):
             logits_flat = y_pred["logits"].reshape(-1, self.num_classes)  # (B*T, num_classes)
             y_flat = y.reshape(-1, self.num_classes)  # (B*T, num_classes)
             self.train_mean_metrics(logits_flat, y_flat)
-            self.train_scalar_metrics(logits_flat, y_flat)
             self.log_dict(self.train_mean_metrics, on_step=True, on_epoch=False)
-            self.log_dict(self.train_scalar_metrics, on_step=True, on_epoch=False)
         else:
             self.train_label_metrics(y_pred["label"], y)
             self.train_logit_metrics(self._handle_binary(y_pred["logits"]), y)
@@ -293,9 +286,7 @@ class FinetuneTask(pl.LightningModule):
             logits_flat = y_pred["logits"].reshape(-1, self.num_classes)  # (B*T, num_classes)
             y_flat = y.reshape(-1, self.num_classes)  # (B*T, num_classes)
             self.val_mean_metrics(logits_flat, y_flat)
-            self.val_scalar_metrics(logits_flat, y_flat)
             self.log_dict(self.val_mean_metrics, on_step=False, on_epoch=True)
-            self.log_dict(self.val_scalar_metrics, on_step=False, on_epoch=True)
         else:
             self.val_label_metrics(y_pred["label"], y)
             self.val_logit_metrics(self._handle_binary(y_pred["logits"]), y)
@@ -317,9 +308,7 @@ class FinetuneTask(pl.LightningModule):
             logits_flat = y_pred["logits"].reshape(-1, self.num_classes)  # (B*T, num_classes)
             y_flat = y.reshape(-1, self.num_classes)  # (B*T, num_classes)
             self.test_mean_metrics(logits_flat, y_flat)
-            self.test_scalar_metrics(logits_flat, y_flat)
             self.log_dict(self.test_mean_metrics, on_step=False, on_epoch=True)
-            self.log_dict(self.test_scalar_metrics, on_step=False, on_epoch=True)
         else:
             self.test_label_metrics(y_pred["label"], y)
             self.test_logit_metrics(self._handle_binary(y_pred["logits"]), y)
@@ -356,39 +345,26 @@ class FinetuneTask(pl.LightningModule):
 
         for name, param in self.model.named_parameters():
             lr = base_lr
-            if "mamba_blocks" in name or "norm_layers" in name:
+            if "norm_layers" in name:
                 block_nr = int(name.split(".")[1])
                 lr *= decay_factor ** (num_blocks - block_nr)
             params_to_pass.append({"params": param, "lr": lr})
 
-        if self.hparams.optimizer.optim == "SGD":
-            optimizer = torch.optim.SGD(params_to_pass, lr=base_lr, momentum=self.hparams.optimizer.momentum)
-        elif self.hparams.optimizer.optim == "Adam":
-            optimizer = torch.optim.Adam(
-                params_to_pass,
-                lr=base_lr,
-                weight_decay=self.hparams.optimizer.weight_decay,
-            )
-        elif self.hparams.optimizer.optim == "AdamW":
+        if self.hparams.optimizer.optim == "AdamW":
             optimizer = torch.optim.AdamW(
                 params_to_pass,
                 lr=base_lr,
                 weight_decay=self.hparams.optimizer.weight_decay,
                 betas=self.hparams.optimizer.betas,
             )
-        elif self.hparams.optimizer.optim == "LAMB":
-            optimizer = torch_optim.Lamb(params_to_pass, lr=base_lr)
         else:
             raise NotImplementedError("No valid optimizer name")
 
-        if self.hparams.scheduler_type == "multi_step_lr":
-            scheduler = hydra.utils.instantiate(self.hparams.scheduler, optimizer=optimizer)
-        else:
-            scheduler = hydra.utils.instantiate(
-                self.hparams.scheduler,
-                optimizer=optimizer,
-                total_training_opt_steps=self.trainer.estimated_stepping_batches,
-            )
+        scheduler = hydra.utils.instantiate(
+            self.hparams.scheduler,
+            optimizer=optimizer,
+            total_training_opt_steps=self.trainer.estimated_stepping_batches,
+        )
 
         lr_scheduler_config = {
             "scheduler": scheduler,

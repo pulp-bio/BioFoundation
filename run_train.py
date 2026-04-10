@@ -34,6 +34,8 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning.strategies import DDPStrategy
+import wandb
+
 
 from biofoundation.core.environment import require_environment
 from util.train_utils import find_last_checkpoint_path
@@ -50,7 +52,7 @@ torch.set_float32_matmul_precision("high")
 def train(cfg: DictConfig):
     seed_everything(cfg.seed)
 
-    date_format = "%d_%m_%H-%M"
+    date_format = "%d_%m_%H-%M-%S.%f"
 
     # Create your version_name
     version = f"{cfg.tag}_{datetime.now().strftime(date_format)}"
@@ -65,11 +67,11 @@ def train(cfg: DictConfig):
     # Weights & Biases
     if cfg.wandb:
         wandb_logger = WandbLogger(
-            name=version,
             entity=cfg.wandb.entity,
             project=cfg.wandb.project,
-            log_model="all",
             save_dir=cfg.wandb.save_dir,
+            name=version,
+            offline=cfg.wandb.offline,
         )
         loggers.append(wandb_logger)
 
@@ -173,6 +175,9 @@ def train(cfg: DictConfig):
     if not cfg.training:
         trainer.save_checkpoint(f"{checkpoint_dirpath}/last.ckpt")
 
+    if wandb.run is not None:
+        wandb.finish()
+
 
 @pl.utilities.rank_zero_only
 def _run_test(
@@ -190,7 +195,6 @@ def _run_test(
     test_results = trainer.test(module, datamodule=datamodule, ckpt_path=last_ckpt)
     results["test_metrics"] = test_results
     return results, trainer
-
 
 @hydra.main(config_path="./config", config_name="defaults", version_base="1.1")
 def run(cfg: DictConfig):

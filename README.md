@@ -10,6 +10,9 @@
   <a href="https://arxiv.org/abs/2512.15729">
     <img src="https://img.shields.io/badge/arXiv-2512.15729-b31b1b.svg" alt="TinyMyo Paper">
   </a>
+  <a href="https://arxiv.org/abs/2603.19100">
+    <img src="https://img.shields.io/badge/arXiv-2603.19100-b31b1b.svg" alt="LuMamba Paper">
+  </a>
   <a href="https://huggingface.co/thorir/FEMBA">
     <img src="https://img.shields.io/badge/HuggingFace-FEMBA-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: FEMBA">
   </a>
@@ -19,6 +22,9 @@
   <a href="https://huggingface.co/PulpBio/TinyMyo">
     <img src="https://img.shields.io/badge/HuggingFace-TinyMyo-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: TinyMyo">
   </a>
+  <a href="https://huggingface.co/PulpBio/LuMamba">
+    <img src="https://img.shields.io/badge/HuggingFace-LuMamba-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: LuMamba">
+  </a>
   <a href="https://github.com/pulp-bio/BioFoundation">
     <img src="https://img.shields.io/github/stars/pulp-bio/BioFoundation?style=social" alt="GitHub Stars">
   </a>
@@ -26,7 +32,7 @@
 
 Copyright (C) 2025 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file for details.
 
-Authors: Thorir Mar Ingolfsson, Anna Tegon, Berkay Döner, Xiaying Wang, Matteo Fasulo, Yawei Li & Luca Benini.
+Authors: Thorir Mar Ingolfsson, Anna Tegon, Berkay Döner, Xiaying Wang, Matteo Fasulo, Danaé Broustail, Yawei Li & Luca Benini.
 
 ## About
 
@@ -43,6 +49,7 @@ Looking for ready-to-use weights of models? We host them on Hugging Face:
 - **FEMBA** ([paper](https://arxiv.org/abs/2502.06438)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-FEMBA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/thorir/FEMBA)
 - **LUNA** ([paper](https://arxiv.org/abs/2510.22257)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-LUNA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/thorir/LUNA)
 - **TinyMyo** ([paper](https://arxiv.org/abs/2512.15729)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-TinyMyo-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/PulpBio/TinyMyo)
+- **LuMamba** ([paper](https://arxiv.org/abs/2603.19100)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-LuMamba-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/PulpBio/LuMamba)
 
 #### Why FEMBA?
 
@@ -54,6 +61,7 @@ Looking for ready-to-use weights of models? We host them on Hugging Face:
 **📄 Model card:** [FEMBA on Hugging Face](https://huggingface.co/thorir/FEMBA) — benchmarks, protocols, and efficiency notes.
 **📜 Weights license:** CC BY-ND 4.0 (use + redistribute **unmodified** weights with attribution; no redistribution of **modified** weights)
 **🧑‍🍳 PR-gated improvements:** If you fine-tune internally and want your variant to become an **official** FEMBA release, open a PR with configs, logs, and evals. We’ll review together; if it looks good, we’ll retrain/validate and publish an **official** FEMBA checkpoint.
+
 **What you’ll find on the hub**
 
 - `TUAB/` → abnormal EEG (base/large)
@@ -179,6 +187,44 @@ python -u run_train.py +experiment=TinyMyo_finetune \
   - Codebase: [MatteoFasulo/silent_speech](https://github.com/MatteoFasulo/silent_speech)
 - **Generic Neuromotor Interface**
   - Codebase: [MatteoFasulo/generic-neuromotor-interface](https://github.com/MatteoFasulo/generic-neuromotor-interface)
+
+#### Why LuMamba?
+
+- **Merging topology-invariant** EEG representations with **Mamba-based** temporal modeling to jointly achieve **linear-time efficiency** and **channel invariance**.
+- **Pretrained on >21k hours** (TUEG) with **LeJEPA** (Balestriero and LeCun, 2025), a recent joint-embedding predictive approach, adapted to biosignals in this repository to enhance cross-montage robustness. 
+
+**➡️ Model hub:** <https://huggingface.co/PulpBio/LuMamba>
+**📄 Model card:** [LuMamba on Hugging Face](https://huggingface.co/PulpBio/LuMamba) — variants, configs, and fine-tuning walkthrough.
+**📜 Weights license:** CC BY-ND 4.0 (use + redistribute **unmodified** weights with attribution; no redistribution of **modified** weights)
+**🧑‍🍳 PR-gated improvements:** If you fine-tune internally and want your variant to become an **official** LuMamba release, open a PR with configs, logs, and evals. We’ll review; if it looks good, we’ll retrain/validate and publish an **official** LuMamba checkpoint.
+
+**What you’ll find on the hub**
+
+- `LeJEPA-only`, `Reconstruction-only`, `Mixed LeJEPA-Reconstruction` pre-trained checkpoints → Pre-training design variants.
+- Instructions to get started on fine-tuning experiments.
+
+Quick download with `huggingface_hub`:
+
+```bash
+pip install huggingface_hub
+```
+
+```python
+from huggingface_hub import snapshot_download
+
+# downloads all pre-trained variants and safetensors into ./checkpoints/LuMamba
+snapshot_download(repo_id="PulpBio/LuMamba", repo_type="model", local_dir="checkpoints/LuMamba")
+```
+Include the safetensors checkpoint path as input and run fine-tuning in the commandline:
+```bash
+python -u run_train.py +experiment=LuMamba_finetune \
+  pretrained_safetensors_path=/absolute/path/to/checkpoints/LuMamba/LuMamba.safetensors
+```
+
+Tips:
+- Adapt configuration file `config/experiment/LuMamba_finetune.yaml` to your specific task with correct dataset paths, classification type (regression and multi-class classification `mcc`, binary `bc` and change `model.num_classes` accordingly), I/O settings, trainer parameters, etc.
+  - Ensure `data_module:train/test/val` are initialized with the compatible dataset class.
+  - Configuration file includes sufficient `#CHANGEME` tags for a working example.
 
 ## Features
 
@@ -399,10 +445,19 @@ If you find this work useful, please cite the respective papers:
       primaryClass={eess.SP},
       url={https://arxiv.org/abs/2512.15729},
 }
+@misc{broustail2026lumambalatentunifiedmamba,
+      title={LuMamba: Latent Unified Mamba for Electrode Topology-Invariant and Efficient EEG Modeling}, 
+      author={Danaé Broustail and Anna Tegon and Thorir Mar Ingolfsson and Yawei Li and Luca Benini},
+      year={2026},
+      eprint={2603.19100},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2603.19100}, 
+}
 ```
 
 ## License
 
 This project is licensed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for details.
 
-**Note on model weights:** Pretrained weights are hosted at <https://huggingface.co/thorir/FEMBA>, <https://huggingface.co/thorir/LUNA>, and <https://huggingface.co/PulpBio/TinyMyo> and licensed under **CC BY-ND 4.0**. You may use and redistribute the **unmodified** weights with attribution. Redistribution of **modified** weights is not permitted. To upstream improvements, please open a PR; accepted changes will be released as **official** checkpoints.
+**Note on model weights:** Pretrained weights are hosted at <https://huggingface.co/thorir/FEMBA>, <https://huggingface.co/thorir/LUNA>, <https://huggingface.co/PulpBio/TinyMyo>, and <https://huggingface.co/PulpBio/LuMamba> and licensed under **CC BY-ND 4.0**. You may use and redistribute the **unmodified** weights with attribution. Redistribution of **modified** weights is not permitted. To upstream improvements, please open a PR; accepted changes will be released as **official** checkpoints.

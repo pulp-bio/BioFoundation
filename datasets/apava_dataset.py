@@ -42,9 +42,6 @@ class APAVA_Dataset(torch.utils.data.Dataset):
             group_size = len(self.data[key]["X"])
             self.index_map.extend([(key, i) for i in range(group_size)])
 
-        # self.channel_indices = get_channel_indices(self.channel_names)
-        # self.channel_indices = torch.tensor(self.channel_indices).to(torch.long)
-
         self.channel_locations = np.stack(get_channel_locations(self.channel_names), axis=0)
         self.channel_locations = torch.from_numpy(self.channel_locations).to(torch.float)
 
@@ -56,7 +53,6 @@ class APAVA_Dataset(torch.utils.data.Dataset):
         grp = self.data[group_key]
 
         X = torch.FloatTensor(grp["X"][sample_idx])
-        #chns = self.channel_indices
 
         return_dict = {"input": X, 'channel_locations': self.channel_locations}
         if self.finetune:

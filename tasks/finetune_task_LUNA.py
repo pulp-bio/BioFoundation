@@ -312,8 +312,6 @@ class FinetuneTask(pl.LightningModule):
             num_blocks = self.hparams.model.depth # LUNA version
         elif hasattr(self.hparams.model, 'num_blocks'):
             num_blocks = self.hparams.model.num_blocks # LuMamba version
-        else:
-            num_blocks = None # LUNA version
             
         params_to_pass = []
         base_lr = self.hparams.optimizer.lr

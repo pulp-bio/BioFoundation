@@ -155,7 +155,6 @@ class MaskTask(pl.LightningModule):
     def log_scatter_2D_SigREG(self, proj2d):
         """
         proj2d: tensor or numpy, shape (N, 2)
-        show: if True → display with plt.show() (for notebooks)
         return_image: if True → return HWC numpy image for logger
         
         Returns:
@@ -380,9 +379,9 @@ class MaskTask(pl.LightningModule):
         g_emb = g_emb.mean(dim=1)  # (BV, D)
 
         # rearrange to (V, B, D)
-        a_emb = a_emb.view(V_local, bs, -1)
-        g_emb = g_emb.view(V_global, bs, -1)
-
+        a_emb = rearrange(a_emb, '(B V) D -> V B D', B=bs, V=V_local)
+        g_emb = rearrange(g_emb, '(B V) D -> V B D', B=bs, V=V_global) 
+        
         # compute mean of global views and similarity loss
         centers = g_emb.mean(0)
 

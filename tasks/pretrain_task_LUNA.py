@@ -55,6 +55,7 @@ class MaskTask(pl.LightningModule):
         self.masking_ratio = self.hparams.masking.masking_ratio
         self.unmasked_loss_coeff = self.hparams.masking.unmasked_loss_coeff
         # Enable normalization if specified in parameters
+        self.normalize = False
         if self.hparams.input_normalization is not None and self.hparams.input_normalization.normalize:
             self.normalize = True
             self.normalize_fct = ChannelWiseNormalize()

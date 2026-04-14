@@ -22,7 +22,6 @@ from models.LUNA import *
 import torch.nn as nn
 import torch
 from typing import Tuple
-from mamba_ssm import Mamba
 
 class BasicLinearClassifier(nn.Module):
     def __init__(self, embed_dim, grid_size, num_classes):
@@ -42,6 +41,8 @@ class BasicLinearClassifier(nn.Module):
         # First linear layer: embed_size * grid_size[0] -> num_classes
         x = self.fc1(x)
         x = self.activation1(x)
+
+        return x
 
 class LuMamba(LUNA):
     def __init__(self, 

@@ -133,7 +133,7 @@ def process_and_convert_to_h5(prepath, output_path):
                 group_size=1000
             )
 
-        print("Processing complete.")
+        print("Preprocessing complete. HDF5 files saved to:", output_path)
 
 def collect_metadata(prepath):
     # 1. Collect data

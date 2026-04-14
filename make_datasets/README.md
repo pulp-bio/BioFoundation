@@ -104,3 +104,32 @@ python make_datasets/make_hdf5.py --prepath /processed_eeg [options]
   ```bash
   python make_datasets/make_hdf5.py --prepath /processed_eeg --dataset TUAB
   ```
+
+  ## Non-TUH Dataset Preprocessing
+
+  For **non-TUH datasets**, preprocessing and export scripts are provided for:
+  - [**MoBI**](https://springernature.figshare.com/articles/dataset/A_mobile_brain-body_imaging_dataset_recorded_during_treadmill_walking_with_a_brain-computer_interface/5807511?backTo=%2Fcollections%2FA_mobile_brain-body_imaging_dataset_recorded_during_treadmill_walking_with_a_brain-computer_interface%2F3894013&file=10263603) (gait prediction)
+  - [**MODMA**](https://modma.lzu.edu.cn/data/index/) (depression detection)
+  - [**Mumtaz2016**](https://figshare.com/articles/dataset/EEG_Data_New/4244171) (depression detection)
+  - [**TDBrain**](https://brainclinics.com/resources/) (Parkinson's detection)
+  - [**APAVA**](https://osf.io/jbysn/overview) (Alzheimer's detection)
+  
+  Scripts can be found in `BioFoundation/make_datasets/` under script names corresponding to the datasets.
+
+  Scripts handle both **preprocessing** and **HDF5 conversion**.
+
+  **How to Use the Script**
+  - Download the dataset of your choice (see link to dataset and user agreement forms).
+  - Select the script corresponding to the dataset of your choice, e.g. use `make_tdbrain_dataset.py` if you want to preprocess and export the TDBRain dataset to HDF5.
+  - The script is run from the command line and takes the path to the raw data directory `prepath` (the original download folder) and `output_path`, the export directory containing your dataset folders (e.g. `./processed_eeg/`).
+  - The script will automatically handle train/test/val splits and create a dataset subfolder in `output_path` containing preprocessed train/test/val HDF5 files.
+
+  **Command-Line Usage**
+  To preprocess and convert the APAVA dataset, where raw .mat files are in `/raw_data/APAVA`:
+    ```bash
+    python make_datasets/make_apava_dataset.py --prepath "/raw_data/APAVA" --output_path "/processed_eeg"
+    ```
+
+  **Notes on file naming**
+  - The `make_<dataset_name>_dataset.py` scripts were tailored to most recent dataset versions on official platforms. File naming and format assumptions in the scripts may have to be adjusted in future versions.
+  - For **Mumtaz2016**, file naming errors were corrected manually (see `(!!!) Important` tags in `make_mumtaz_dataset.py` to perform the necessary checks).

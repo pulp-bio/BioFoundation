@@ -139,8 +139,7 @@ def process_and_convert_to_h5(prepath, output_path):
                 finetune=True,
                 group_size=1000
             )
-
-    print("Processing complete. HDF5 files saved to:", output_path)
+    print("Preprocessing complete. HDF5 files saved to:", output_path)
 
 def collect_metadata(prepath):
     # read participants_metadata.csv

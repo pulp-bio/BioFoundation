@@ -70,7 +70,7 @@ defaults:
   - override /task: "#CHANGEME" # override with "finetune_task_LUNA" for classification and "finetune_regression_task_LuMamba" for regression tasks
   - override /criterion: finetune_criterion
 
-# Change _target_ to corresponding dataset class for finetuning dataset
+# Change _target_ to corresponding dataset wrapper for finetuning dataset
 data_module:
   train:
     _target_: 'datasets.#CHANGEME.#CHANGEME'

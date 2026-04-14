@@ -13,10 +13,10 @@
   <a href="https://arxiv.org/abs/2603.19100">
     <img src="https://img.shields.io/badge/arXiv-2603.19100-b31b1b.svg" alt="LuMamba Paper">
   </a>
-  <a href="https://huggingface.co/thorir/FEMBA">
+  <a href="https://huggingface.co/PulpBio/FEMBA">
     <img src="https://img.shields.io/badge/HuggingFace-FEMBA-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: FEMBA">
   </a>
-  <a href="https://huggingface.co/thorir/LUNA">
+  <a href="https://huggingface.co/PulpBio/LUNA">
     <img src="https://img.shields.io/badge/HuggingFace-LUNA-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: LUNA">
   </a>
   <a href="https://huggingface.co/PulpBio/TinyMyo">
@@ -46,8 +46,8 @@ Looking for ready-to-use weights of models? We host them on Hugging Face:
 
 ### Currently available
 
-- **FEMBA** ([paper](https://arxiv.org/abs/2502.06438)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-FEMBA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/thorir/FEMBA)
-- **LUNA** ([paper](https://arxiv.org/abs/2510.22257)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-LUNA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/thorir/LUNA)
+- **FEMBA** ([paper](https://arxiv.org/abs/2502.06438)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-FEMBA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/PulpBio/FEMBA)
+- **LUNA** ([paper](https://arxiv.org/abs/2510.22257)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-LUNA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/PulpBio/LUNA)
 - **TinyMyo** ([paper](https://arxiv.org/abs/2512.15729)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-TinyMyo-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/PulpBio/TinyMyo)
 - **LuMamba** ([paper](https://arxiv.org/abs/2603.19100)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-LuMamba-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/PulpBio/LuMamba)
 
@@ -57,8 +57,8 @@ Looking for ready-to-use weights of models? We host them on Hugging Face:
 - **Strong results** on TUAB/TUAR/TUSL with ready task-specific checkpoints.
 - **Simple fine-tune path:** set `CHECKPOINT_DIR`, run `+experiment=FEMBA_finetune`.
 
-**➡️ Model hub:** <https://huggingface.co/thorir/FEMBA>
-**📄 Model card:** [FEMBA on Hugging Face](https://huggingface.co/thorir/FEMBA) — benchmarks, protocols, and efficiency notes.
+**➡️ Model hub:** <https://huggingface.co/PulpBio/FEMBA>
+**📄 Model card:** [FEMBA on Hugging Face](https://huggingface.co/PulpBio/FEMBA) — benchmarks, protocols, and efficiency notes.
 **📜 Weights license:** CC BY-ND 4.0 (use + redistribute **unmodified** weights with attribution; no redistribution of **modified** weights)
 **🧑‍🍳 PR-gated improvements:** If you fine-tune internally and want your variant to become an **official** FEMBA release, open a PR with configs, logs, and evals. We’ll review together; if it looks good, we’ll retrain/validate and publish an **official** FEMBA checkpoint.
 
@@ -78,7 +78,7 @@ pip install huggingface_hub
 from huggingface_hub import snapshot_download
 
 # downloads all task folders (TUAB/TUAR/TUSL) and safetensors into ./checkpoints/FEMBA
-snapshot_download(repo_id="thorir/FEMBA", repo_type="model", local_dir="checkpoints/FEMBA")
+snapshot_download(repo_id="PulpBio/FEMBA", repo_type="model", local_dir="checkpoints/FEMBA")
 ```
 
 Use the paths directly in your runs, e.g.:
@@ -96,8 +96,8 @@ python -u run_train.py +experiment=FEMBA_finetune
 - **Pretrained on >21k hours** (TUEG + Siena) with masked-patch reconstruction; strong transfer across datasets/montages.
 - **Simple fine-tune path:** pick model size with `LUNA_{base,large,huge}.yaml`, set `pretrained_safetensors_path`, run `+experiment=LUNA_finetune`.
 
-**➡️ Model hub:** <https://huggingface.co/thorir/LUNA>
-**📄 Model card:** [LUNA on Hugging Face](https://huggingface.co/thorir/LUNA) — variants, configs, and fine-tuning walkthrough.
+**➡️ Model hub:** <https://huggingface.co/PulpBio/LUNA>
+**📄 Model card:** [LUNA on Hugging Face](https://huggingface.co/PulpBio/LUNA) — variants, configs, and fine-tuning walkthrough.
 **📜 Weights license:** CC BY-ND 4.0 (use + redistribute **unmodified** weights with attribution; no redistribution of **modified** weights)
 **🧑‍🍳 PR-gated improvements:** If you fine-tune internally and want your variant to become an **official** LUNA release, open a PR with configs, logs, and evals. We’ll review; if it looks good, we’ll retrain/validate and publish an **official** LUNA checkpoint.
 
@@ -116,7 +116,7 @@ pip install huggingface_hub
 from huggingface_hub import snapshot_download
 
 # downloads LUNA folders and .safetensors into ./checkpoints/LUNA
-snapshot_download(repo_id="thorir/LUNA", repo_type="model", local_dir="checkpoints/LUNA")
+snapshot_download(repo_id="PulpBio/LUNA", repo_type="model", local_dir="checkpoints/LUNA")
 ```
 
 Use the paths directly in your runs like here below:
@@ -222,9 +222,10 @@ python -u run_train.py +experiment=LuMamba_finetune \
 ```
 
 Tips:
+- Data preprocessing scripts are provided in `/make_datasets` for various downstream datasets. See `make_datasets/README.md` for instructions on getting started. 
 - Adapt configuration file `config/experiment/LuMamba_finetune.yaml` to your specific task with correct dataset paths, classification type (regression and multi-class classification `mcc`, binary `bc` and change `model.num_classes` accordingly), I/O settings, trainer parameters, etc.
   - Ensure `data_module:train/test/val` are initialized with the compatible dataset class.
-  - Configuration file includes sufficient `#CHANGEME` tags for a working example.
+  - Configuration file includes sufficient `#CHANGEME` tags and further instructions for a working example.
 
 ## Features
 
@@ -310,7 +311,7 @@ python -u run_train.py +experiment=FEMBA_finetune
 ```
 
 > **Tip:** Pretrained FEMBA weights (TUAB/TUAR/TUSL folders) are available on 🤗 Hugging Face:
-> <https://huggingface.co/thorir/FEMBA>
+> <https://huggingface.co/PulpBio/FEMBA>
 > Set `CHECKPOINT_DIR` to the desired `.safetensors` (e.g., `.../TUAR/base.safetensors`) before launching.
 
 Note in both cases one needs to make sure that the dataset that specific experiment is using is downloaded and available in the correct path.
@@ -460,4 +461,4 @@ If you find this work useful, please cite the respective papers:
 
 This project is licensed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for details.
 
-**Note on model weights:** Pretrained weights are hosted at <https://huggingface.co/thorir/FEMBA>, <https://huggingface.co/thorir/LUNA>, <https://huggingface.co/PulpBio/TinyMyo>, and <https://huggingface.co/PulpBio/LuMamba> and licensed under **CC BY-ND 4.0**. You may use and redistribute the **unmodified** weights with attribution. Redistribution of **modified** weights is not permitted. To upstream improvements, please open a PR; accepted changes will be released as **official** checkpoints.
+**Note on model weights:** Pretrained weights are hosted at <https://huggingface.co/PulpBio/FEMBA>, <https://huggingface.co/PulpBio/LUNA>, <https://huggingface.co/PulpBio/TinyMyo>, and <https://huggingface.co/PulpBio/LuMamba> and licensed under **CC BY-ND 4.0**. You may use and redistribute the **unmodified** weights with attribution. Redistribution of **modified** weights is not permitted. To upstream improvements, please open a PR; accepted changes will be released as **official** checkpoints.

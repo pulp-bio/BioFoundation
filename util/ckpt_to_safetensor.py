@@ -34,7 +34,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--safetensor_path",
         type=str,
-        default="model.safetensors",
+        required=True,
         help="Path to save the converted safetensors file.",
     )
     parser.add_argument(

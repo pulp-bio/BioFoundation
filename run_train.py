@@ -65,12 +65,13 @@ def train(cfg: DictConfig):
     loggers = [tb_logger]
 
     # Weights & Biases
+    wandb_logger = None
     if cfg.wandb:
         wandb_logger = WandbLogger(
             entity=cfg.wandb.entity,
             project=cfg.wandb.project,
             save_dir=cfg.wandb.save_dir,
-            name=version,
+            name=cfg.wandb.run_name if cfg.wandb.run_name else version,
             offline=cfg.wandb.offline,
         )
         loggers.append(wandb_logger)
@@ -169,7 +170,8 @@ def train(cfg: DictConfig):
                 datamodule=data_module,
                 results=results,
                 accelerator=cfg.trainer.accelerator,
-                last_ckpt=best_ckpt,
+                ckpt=best_ckpt,
+                wandb_logger=wandb_logger,
             )
 
     if not cfg.training:
@@ -185,16 +187,19 @@ def _run_test(
     datamodule: pl.LightningDataModule,
     results,
     accelerator,
-    last_ckpt,
+    ckpt,
+    wandb_logger=None,
 ):
     trainer = pl.Trainer(
         accelerator=accelerator,
         devices=1,
+        logger=wandb_logger if wandb_logger else [],
     )
     print("===> Start testing")
-    test_results = trainer.test(module, datamodule=datamodule, ckpt_path=last_ckpt)
+    test_results = trainer.test(module, datamodule=datamodule, ckpt_path=ckpt)
     results["test_metrics"] = test_results
     return results, trainer
+
 
 @hydra.main(config_path="./config", config_name="defaults", version_base="1.1")
 def run(cfg: DictConfig):

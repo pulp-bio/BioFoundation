@@ -83,12 +83,10 @@ class FinetuneTask(pl.LightningModule):
             self.criterion = nn.L1Loss()
 
             # Metric
-            mean_metrics = MetricCollection(
-                {
-                    "rmse": MeanSquaredError(squared=False),
-                    "mae": MeanAbsoluteError(),
-                }
-            )
+            mean_metrics = MetricCollection({
+                "rmse": MeanSquaredError(squared=False),
+                "mae": MeanAbsoluteError(),
+            })
 
             self.train_mean_metrics = mean_metrics.clone(prefix="train/")
             self.val_mean_metrics = mean_metrics.clone(prefix="val/")
@@ -156,6 +154,11 @@ class FinetuneTask(pl.LightningModule):
             self.val_logit_metrics = logit_metrics.clone(prefix="val/")
             self.test_logit_metrics = logit_metrics.clone(prefix="test/")
 
+        # Freeze unused parameters during fine-tuning so DDP doesn't complain
+        # when find_unused_parameters=False
+        for name, param in self.model.named_parameters():
+            if "mask_token" in name:
+                param.requires_grad = False
 
     def load_pretrained_checkpoint(self, model_ckpt: str) -> None:
         """Loads a pretrained PyTorch Lightning checkpoint (.ckpt).
@@ -178,6 +181,8 @@ class FinetuneTask(pl.LightningModule):
                 param.requires_grad = False
             if "model_head" in name:
                 param.requires_grad = True  # Unfreeze model head
+            if "mask_token" in name:
+                param.requires_grad = False
 
         print("Pretrained model ready.")
 
@@ -199,6 +204,8 @@ class FinetuneTask(pl.LightningModule):
                 param.requires_grad = False
             if "model_head" in name:
                 param.requires_grad = True
+            if "mask_token" in name:
+                param.requires_grad = False
 
         print("Pretrained model ready.")
 

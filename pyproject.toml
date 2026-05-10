@@ -38,10 +38,3 @@ dependencies = [
 
 [tool.uv.sources]
 warmup-scheduler = { git = "https://github.com/ildoonet/pytorch-gradual-warmup-lr.git" }
-
-[tool.black]
-line-length = 120
-
-[tool.isort]
-profile = "black"
-multi_line_output = 3

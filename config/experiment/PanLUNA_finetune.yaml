@@ -1,0 +1,121 @@
+
+# @package _global_
+tag: PanLUNA_finetune
+model_size: tiny
+gpus: 4
+num_nodes: 1
+num_workers: 8
+batch_size: 256
+
+training: True
+final_validate: True
+final_test: True
+finetune_pretrained: True
+resume: False
+find_unused_parameters: False # Must be set to True for LoRA fine-tuning     
+
+label_smoothing: 0
+layerwise_lr_decay: 0.75
+scheduler_type: cosine
+# Change for different type of task
+# bc - binary classification
+# mlp - multilabel classification
+# mcc - multiclass classification
+classification_type: "#CHANGEME" 
+
+pretrained_checkpoint_path: null
+pretrained_safetensors_path: null # "#CHANGME"
+
+callbacks:
+  progress_bar:
+    _target_: 'pytorch_lightning.callbacks.TQDMProgressBar'
+    refresh_rate: 50
+  early_stopping:
+    _target_: 'pytorch_lightning.callbacks.EarlyStopping'
+    monitor: 'val_loss'
+    patience: 12
+    mode: 'min'
+    verbose: True
+
+input_normalization:
+  normalize: True
+
+finetuning:
+  mode: "freeze_encoder" # options: "full", "freeze_encoder", "lora"
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.10
+    target_modules: 
+      - 'blocks.0.attn.qkv_proj'
+      - 'blocks.1.attn.qkv_proj'
+      - 'blocks.2.attn.qkv_proj'
+      - 'blocks.3.attn.qkv_proj'
+      - 'blocks.4.attn.qkv_proj'
+      - 'blocks.5.attn.qkv_proj'
+      - 'blocks.0.attn.proj'
+      - 'blocks.1.attn.proj'
+      - 'blocks.2.attn.proj'
+      - 'blocks.3.attn.proj'
+      - 'blocks.4.attn.proj'
+      - 'blocks.5.attn.proj'
+      - 'cross_attn.cross_attention'
+      - 'cross_attn.cross_attention.out_proj'
+      - 'cross_attn.query_self_attn.layers.0.self_attn'
+      - 'cross_attn.query_self_attn.layers.1.self_attn'
+      - 'cross_attn.query_self_attn.layers.2.self_attn'
+      - 'cross_attn.query_self_attn.layers.0.self_attn.out_proj'
+      - 'cross_attn.query_self_attn.layers.1.self_attn.out_proj'
+      - 'cross_attn.query_self_attn.layers.2.self_attn.out_proj'
+
+io:
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  version: ${tag}_${model_size}_finetune
+  base_output_path: "#CHANGEME"
+
+defaults:
+  - override /data_module: finetune_data_module_unimodal_PanLUNA # or finetune_data_module_multimodal_PanLUNA
+  - override /model: PanLUNA_finetune
+  - override /scheduler: cosine
+  - override /task: finetune_task_PanLUNA
+  - override /criterion: finetune_criterion
+
+model:
+  patch_size: 32
+  embed_dim: 64
+  num_heads: 2
+  depth: 6
+  num_queries: 4
+  mlp_ratio: 4
+  drop_path: 0.1
+  num_classes: "#CHANGEME"
+
+trainer:
+  accelerator: gpu
+  num_nodes: ${num_nodes}
+  devices: ${gpus}
+  strategy: ddp
+  max_epochs: 100
+  precision: bf16-mixed
+
+model_checkpoint:
+  save_last: True
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+  every_n_epochs: 1
+
+optimizer:
+  optim: 'AdamW'
+  lr: 5.0e-4
+  betas: [0.9, 0.999]
+  weight_decay: 0.05
+
+scheduler:
+  trainer: ${trainer}
+  min_lr: 5.0e-6 # minimum LR for the cosine scheduler
+  warmup_lr_init: 2.5e-7 # initial LR for the warmup phase 
+  warmup_epochs: 0
+
+
+

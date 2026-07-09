@@ -1,0 +1,33 @@
+dataset_types: # both pretraining datasets and unimodal finetuning datasets
+  tueg:
+    channels: [FP1-F7, F7-T3, T3-T5, T5-O1, FP2-F8, F8-T4, T4-T6, T6-O2, T3-C3, C3-CZ, CZ-C4, C4-T4, FP1-F3, F3-C3, C3-P3, P3-O1, FP2-F4, F4-C4, C4-P4, P4-O2, A1-T3, T4-A2]
+    location_fn: "eeg"
+    sensor_type: 1
+  siena:
+    channels: [FP1, FP2, F3, C3, P3, O1, F7, T3, T5, FC1, FC5, CP1, CP5, F9, FZ, CZ, PZ, F4, C4, P4, O2, F8, T4, T6, FC2,FC6, CP2, CP6, F10]
+    location_fn: "eeg"
+    sensor_type: 1
+  code15:
+    channels: [I, II, III, AVR, AVL, AVF, V1, V2, V3, V4, V5, V6]
+    location_fn: "ecg"
+    sensor_type: 0
+  mimicIV: 
+    channels: [I, II, III, AVR, AVF, AVL, V1, V2, V3, V4, V5, V6]
+    location_fn: "ecg"
+    sensor_type: 0
+  pulsedb:
+    channels: [II, PPG]
+    location_fn: "ecg"
+    sensor_type: [0, 2]
+  ptbxl:
+    channels: [I, II, III, AVR, AVF, AVL, V1, V2, V3, V4, V5, V6]
+    location_fn: "ecg"
+    sensor_type: 0
+  csn:
+    channels: [I, II, III, AVR, AVL, AVF, V1, V2, V3, V4, V5, V6]
+    location_fn: "ecg"
+    sensor_type: 0
+  cpsc2018: 
+    channels: [I, II, III, AVR, AVL, AVF, V1, V2, V3, V4, V5, V6]
+    location_fn: "ecg"
+    sensor_type: 0

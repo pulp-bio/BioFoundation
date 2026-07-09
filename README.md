@@ -13,6 +13,9 @@
   <a href="https://arxiv.org/abs/2603.19100">
     <img src="https://img.shields.io/badge/arXiv-2603.19100-b31b1b.svg" alt="LuMamba Paper">
   </a>
+  <a href="https://arxiv.org/pdf/2604.04297">
+    <img src="https://img.shields.io/badge/arXiv-2604.04297-b31b1b.svg" alt="PanLUNA Paper">
+  </a>
   <a href="https://huggingface.co/PulpBio/FEMBA">
     <img src="https://img.shields.io/badge/HuggingFace-FEMBA-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: FEMBA">
   </a>
@@ -25,6 +28,9 @@
   <a href="https://huggingface.co/PulpBio/LuMamba">
     <img src="https://img.shields.io/badge/HuggingFace-LuMamba-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: LuMamba">
   </a>
+  <a href="https://huggingface.co/PulpBio/PanLUNA">
+    <img src="https://img.shields.io/badge/HuggingFace-PanLUNA-%23ffcc4d?logo=huggingface&logoColor=black" alt="Hugging Face: LuMamba">
+  </a>
   <a href="https://github.com/pulp-bio/BioFoundation">
     <img src="https://img.shields.io/github/stars/pulp-bio/BioFoundation?style=social" alt="GitHub Stars">
   </a>
@@ -32,7 +38,7 @@
 
 Copyright (C) 2025-2026 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file for details.
 
-Authors: Thorir Mar Ingolfsson, Anna Tegon, Berkay Döner, Xiaying Wang, Matteo Fasulo, Danaé Broustail, Yawei Li & Luca Benini.
+Authors: Thorir Mar Ingolfsson, Anna Tegon, Berkay Döner, Xiaying Wang, Matteo Fasulo, Danaé Broustail, Marija Zelic, Yawei Li & Luca Benini.
 
 ## About
 
@@ -50,6 +56,7 @@ Looking for ready-to-use weights of models? We host them on Hugging Face:
 - **LUNA** ([paper](https://arxiv.org/abs/2510.22257)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-LUNA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/PulpBio/LUNA)
 - **TinyMyo** ([paper](https://arxiv.org/abs/2512.15729)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-TinyMyo-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/PulpBio/TinyMyo)
 - **LuMamba** ([paper](https://arxiv.org/abs/2603.19100)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-LuMamba-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/PulpBio/LuMamba)
+- **PanLUNA** ([paper](https://arxiv.org/pdf/2604.04297)) [![HF Model Card](https://img.shields.io/badge/Model%20Card-PanLUNA-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/PulpBio/PanLUNA)
 
 #### Why FEMBA?
 
@@ -226,6 +233,47 @@ Tips:
 - Adapt configuration file `config/experiment/LuMamba_finetune.yaml` to your specific task with correct dataset paths, classification type (regression and multi-class classification `mcc`, binary `bc` and change `model.num_classes` accordingly), I/O settings, trainer parameters, etc.
   - Ensure `data_module:train/test/val` are initialized with the compatible dataset class.
   - Configuration file includes sufficient `#CHANGEME` tags and further instructions for a working example.
+
+#### Why PanLUNA?
+
+* Extending LUNA's channel-unification mechanism from topology invariance to **cross-modal fusion**, jointly processing EEG, ECG, and PPG within a single shared encoder via sensor-type embeddings - no modality-specific backbones, no paired multimodal data required during pretraining.
+* Pretrained on ~40,000 hours of heterogeneous biosignal data (TUEG, Siena, MIMIC-IV, CODE-15%, PulseDB) with a masked signal reconstruction objective.
+* Strong performance on unimodal and multimodal experiments.
+
+➡️ Model hub: __https://huggingface.co/PulpBio/PanLUNA__ 📄 Model card: __[PanLUNA on Hugging Face](https://huggingface.co/PulpBio/PanLUNA)__ — variants, configs, and fine-tuning walkthrough. 📜 Weights license: CC BY-ND 4.0 (use + redistribute unmodified weights with attribution; no redistribution of modified weights) 🧑‍🍳 PR-gated improvements: If you fine-tune internally and want your variant to become an official PanLUNA release, open a PR with configs, logs, and evals. We'll review; if it looks good, we'll retrain/validate and publish an official PanLUNA checkpoint.
+
+**What you'll find on the hub**
+
+* Pre-trained checkpoint.
+* Instructions to get started on fine-tuning experiments.
+
+Quick download with `huggingface_hub`:
+
+```
+pip install huggingface_hub
+```
+
+```python
+from huggingface_hub import snapshot_download
+
+# downloads all pre-trained variants and safetensors into ./checkpoints/PanLUNA
+snapshot_download(repo_id="PulpBio/PanLUNA", repo_type="model", local_dir="checkpoints/PanLUNA")
+```
+
+Include the safetensors checkpoint path as input and run fine-tuning in the commandline:
+
+```bash
+python -u run_train.py +experiment=PanLUNA_finetune \
+  pretrained_safetensors_path=/absolute/path/to/checkpoints/PanLUNA/PanLUNA.safetensors
+```
+
+Tips:
+
+* Data preprocessing scripts are provided in `/make_datasets` for various downstream datasets. Download the corresponding dataset, locate its preprocessing script by name matching, and adjust key parameters.
+* Adapt configuration file `config/experiment/PanLUNA_finetune.yaml` to your specific task with correct data module (for unimodal experiments `config/data_module/finetune_data_module_unimodal_PanLUNA` or multimodal experiments `config/data_module/finetune_data_module_multimodal_PanLUNA`), classification type (binary `bc`, multi-class `mcc` and mulit-label `mlp`) and change `model.num_classes` accordingly. For different fine-tuning strategies adjust `finetuning.mode` parameter with `lora` for Low-Rank Adaptation, `freeze_encoder` for frozen backbone or select `full` for complete adaptation. 
+  * Ensure `data_module:train/test/val` are initialized with the compatible dataset class. Leverage `config/data_module/finetune_data_module_multimodal_PanLUNA:data_module.train.channel_groups` to specify channels available in the dataset and `channel_start`/`channel_end` to tweak the used subset.
+  * Configuration file includes sufficient `#CHANGEME` tags and further instructions for a working example.
+* Results on the addtional cross-modal experiments provided in the `docs/model/PanLUNA.md`.
 
 ## Features
 
@@ -454,6 +502,15 @@ If you find this work useful, please cite the respective papers:
       archivePrefix={arXiv},
       primaryClass={cs.AI},
       url={https://arxiv.org/abs/2603.19100}, 
+}
+@misc{zelic2026panluna,
+      title={PanLUNA: An Efficient and Robust Query-Unified Multimodal Model for Edge Biosignal Intelligence}, 
+      author={Marija Zelic and Anna Tegon and Yawei Li and Thorir Mar Ingolfsson},
+      year={2026},
+      eprint={2604.04297},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2604.04297}, 
 }
 ```
 

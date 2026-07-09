@@ -1,0 +1,720 @@
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  Marija Zelic                                                      *
+#* Author:  Thorir Mar Ingolfsson                                             *
+#*----------------------------------------------------------------------------*
+# @package _global_
+defaults:
+  - dataset_types
+
+data_module:
+  _target_: 'data_module.multiloader_data_module.VaryingChannelsDataModule'
+  cfg:
+    num_workers: ${num_workers}
+    batch_size: ${batch_size}
+  train_val_split_ratio: 0.8
+  datasets:
+    TUEG_20_channels_0:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 20
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_20_channels_1:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 20
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_20_channels_2:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 20
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_0:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_11:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_12:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_13:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_14:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_16:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_18:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_19:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_1:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_20:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_23:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_24:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_31:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_3:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_4:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_5:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_15:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_21:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_22:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_25:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_26:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_27:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_28:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_20_channels_3:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 20
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_29:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_2:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_30:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_6:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_7:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_8:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_9:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    TUEG_22_channels_10:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 22
+    TUEG_22_channels_17:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "${env:SCRATCH_PATH}/TUEG/TUEG_22_channels_17.h5"
+      num_channels: 22
+      channels: ${dataset_types.tueg.channels}
+      location_fn: ${dataset_types.tueg.location_fn}
+      sensor_type: ${dataset_types.tueg.sensor_type}
+    VitalDB_2_channels_0:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    VitalDB_2_channels_1:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    VitalDB_2_channels_2:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    VitalDB_2_channels_3:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    VitalDB_2_channels_4:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    VitalDB_2_channels_5:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    VitalDB_2_channels_6:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    VitalDB_2_channels_7:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    VitalDB_2_channels_8:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    VitalDB_2_channels_9:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    MimicDB_2_channels_0:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    MimicDB_2_channels_1:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    MimicDB_2_channels_2:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    MimicDB_2_channels_3:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    MimicDB_2_channels_4:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    MimicDB_2_channels_5:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    MimicDB_2_channels_6:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 2
+      channels: ${dataset_types.pulsedb.channels}
+      location_fn: ${dataset_types.pulsedb.location_fn}
+      sensor_type: ${dataset_types.pulsedb.sensor_type}
+    MIMIC-IV-ECG_12_channels_0:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_1:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_2:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_3:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_4:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_5:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_6:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_7:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_8:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_9:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_10:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_11:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_12:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_13:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_14:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_15:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_16:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_17:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_18:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_19:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_20:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_21:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_22:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_23:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_24:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_25:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    MIMIC-IV-ECG_12_channels_26:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.mimicIV.channels}
+      location_fn: ${dataset_types.mimicIV.location_fn}
+      sensor_type: ${dataset_types.mimicIV.sensor_type}
+    CODE15_0:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_1:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_2:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_3:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_4:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_5:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_6:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_7:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_8:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_9:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_10:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_11:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_12:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_13:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_14:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_15:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_16:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    CODE15_17:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 12
+      channels: ${dataset_types.code15.channels}
+      location_fn: ${dataset_types.code15.location_fn}
+      sensor_type: ${dataset_types.code15.sensor_type}
+    SIENA_29_channels:
+      _target_: 'datasets.pretraining_datasets_PanLUNA.BioSignal_Dataset'
+      hdf5_file: "#CHANGEME"
+      num_channels: 29
+      channels: ${dataset_types.siena.channels}
+      location_fn: ${dataset_types.siena.location_fn}
+      sensor_type: ${dataset_types.siena.sensor_type}

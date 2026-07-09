@@ -105,14 +105,29 @@ python make_datasets/make_hdf5.py --prepath /processed_eeg [options]
   python make_datasets/make_hdf5.py --prepath /processed_eeg --dataset TUAB
   ```
 
-  ## Non-TUH Dataset Preprocessing
+  ## Non-TUH Dataset Preprocessing 
 
-  For **non-TUH datasets**, preprocessing and export scripts are provided for:
+  For **non-TUH datasets for LuMamba**, preprocessing and export scripts are provided for:
   - [**MoBI**](https://springernature.figshare.com/articles/dataset/A_mobile_brain-body_imaging_dataset_recorded_during_treadmill_walking_with_a_brain-computer_interface/5807511?backTo=%2Fcollections%2FA_mobile_brain-body_imaging_dataset_recorded_during_treadmill_walking_with_a_brain-computer_interface%2F3894013&file=10263603) (gait prediction)
   - [**MODMA**](https://modma.lzu.edu.cn/data/index/) (depression detection)
   - [**Mumtaz2016**](https://figshare.com/articles/dataset/EEG_Data_New/4244171) (depression detection)
   - [**TDBrain**](https://brainclinics.com/resources/) (Parkinson's detection)
   - [**APAVA**](https://osf.io/jbysn/overview) (Alzheimer's detection)
+
+  For **non-TUH datasets for PanLUNA**, preprocessing and export scripts are provided for:
+
+  - Pretraining Datasets:
+     - [**Siena Scalp EEG Database**](https://physionet.org/content/siena-scalp-eeg/1.0.0/) - 29 channel EEG dataset.
+     - [**MIMIC-IV-ECG: Diagnostic Electrocardiogram Matched Subset**](https://physionet.org/content/mimic-iv-ecg/1.0/) - 12 channel ECG dataset.
+     - [**CODE-15%**](https://zenodo.org/records/4916206) - 12 channel ECG dataset.
+     - [**PulseDB**](https://github.com/pulselabteam/PulseDB) - 1 ECG channel and 1 PPG channel.
+  - Fine-tuning Dataset:
+     - [**HMC**](https://physionet.org/content/hmc-sleep-staging/1.1/) - 4 EEG channels and 1 ECG channel.
+     - [**SEED-VII**](https://bcmi.sjtu.edu.cn/home/seed/seed-vii.html) - 62 EEG channels and 1 ECG channel.
+     - [**PTB-XL**](https://physionet.org/content/ptb-xl/1.0.3/) - 12 ECG channels.
+     - [**CSN**](https://physionet.org/content/ecg-arrhythmia/1.0.0/) - 12 ECG channels.
+     - [**CPSC 2018**](https://www.kaggle.com/datasets/physionet/china-physiological-signal-challenge-in-2018) - 12 ECG channels.
+     - [**WESAD**](https://www.kaggle.com/datasets/orvile/wesad-wearable-stress-affect-detection-dataset) - 1 ECG and 1 PPG channel.
   
   Scripts can be found in `BioFoundation/make_datasets/` under script names corresponding to the datasets.
 
@@ -133,3 +148,5 @@ python make_datasets/make_hdf5.py --prepath /processed_eeg [options]
   **Notes on file naming**
   - The `make_<dataset_name>_dataset.py` scripts were tailored to most recent dataset versions on official platforms. File naming and format assumptions in the scripts may have to be adjusted in future versions.
   - For **Mumtaz2016**, file naming errors were corrected manually (see `(!!!) Important` tags in `make_mumtaz_dataset.py` to perform the necessary checks).
+  - For **PTB-XL**, **CSN** and **CPSC 2018** datasets, go to [MERL ICML 2024 repository](https://github.com/cheliu-computation/MERL-ICML2024/tree/main/finetune/data_split) and download `csv` files providing `train/val/test` splits and provide the path to the folder storing these `csv` files under `--csv_files_dir` argument in corresponding scripts.
+  

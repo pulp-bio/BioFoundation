@@ -1,4 +1,3 @@
-# @package _global_
 #*----------------------------------------------------------------------------*
 #* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
 #* SPDX-License-Identifier: Apache-2.0                                        *
@@ -15,8 +14,17 @@
 #* See the License for the specific language governing permissions and        *
 #* limitations under the License.                                             *
 #*                                                                            *
-#* Author:  Marija Zelic                                                      *
-#* Author:  Thorir Mar Ingolfsson                                             *
+#* Author:  BioFoundation Contributors                                       *
 #*----------------------------------------------------------------------------*
-task:
-  _target_: 'tasks.pretrain_task_PanLUNA.MaskTask'
+
+"""Stable contracts shared by model-specific implementations."""
+
+from biofoundation.core.batch import BatchRequirements, SignalBatch, as_signal_batch, require_batch_fields
+
+__all__ = [
+    "BatchRequirements",
+    "SignalBatch",
+    "as_signal_batch",
+    "require_batch_fields",
+]
+

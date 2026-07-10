@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.DS_Store
+
+# Local environments and experiment output
+.venv/
+venv/
+outputs/
+checkpoints/
+wandb/

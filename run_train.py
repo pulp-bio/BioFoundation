@@ -35,12 +35,8 @@ from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
 
+from biofoundation.core.environment import require_environment
 from util.train_utils import find_last_checkpoint_path
-
-for env_var in ["DATA_PATH", "CHECKPOINT_DIR"]:
-    env_var_value = os.environ.get(env_var)
-    if env_var_value is None or env_var_value == "#CHANGEME":
-        raise RuntimeError(f"Environment variable {env_var} is not set. Please set it before running the script.")
 
 OmegaConf.register_new_resolver("env", lambda key: os.getenv(key))
 OmegaConf.register_new_resolver("get_method", hydra.utils.get_method)
@@ -191,6 +187,6 @@ def run(cfg: DictConfig):
 
 
 if __name__ == "__main__":
-    # Ensure environment variables are set before Hydra processes the config
+    require_environment(("DATA_PATH", "CHECKPOINT_DIR"))
     os.environ["HYDRA_FULL_ERROR"] = "1"
     run()

@@ -1,12 +1,17 @@
-Copyright (C) 2025 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file at the root of the repository for details.
+Copyright (C) 2025-2026 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file at the root of the repository for details.
 
 # Models
 
-This directory contains the implementations of the deep learning models used in the **BioFoundation** project. Each model is defined as a PyTorch `nn.Module` and is designed to be configurable and extensible for various research tasks.
+This directory contains the PyTorch `nn.Module` implementations for the BioFoundation model families. Hydra model settings live in [`../config/model`](../config/model/), while the canonical family metadata and batch requirements live in [`../biofoundation/model_registry.py`](../biofoundation/model_registry.py).
 
 ## Available Models
 
-- **FEMBA**: A lightweight EEG model designed for both pretraining and fine-tuning tasks. For a more detailed description of the model check the [documentation](../docs/model/FEMBA.md).
-- **LUNA**: An efficient EEG model specifically designed for handling different types of electrode configurations. For a more detailed description of the model check the [documentation](../docs/model/LUNA.md).
-- **TinyMyo**: A 3.6M-parameter Transformer-based foundation model for surface EMG (sEMG). It is pretrained on >480 GB of EMG data and optimized for ultra-low-power, real-time deployment, including microcontrollers (GAP9) where it achieves an inference time of 0.785 s, energy of 44.91 mJ and power envelope of 57.18 mW. For a more detailed description of the model check the [documentation](../docs/model/TinyMyo.md).
-- **PanLUNA**: A 5.4M-parameter pan-modal biosignal foundation model that extends LUNA’s channel-unification mechanism from topology invariance to cross-modal fusion, jointly processing EEG, ECG, and PPG within a single shared encoder via sensor-type embeddings, with no modality-specific backbones or paired multimodal data required during pretraining; it is pretrained on ~40,000 hours of heterogeneous biosignal data using masked signal reconstruction and achieves strong performance across unimodal and multimodal evaluation settings. For more detailed description of the model check [documentation]../docs/model/PanLUNA.md).
+| Model | Signals | Summary | Resources |
+| --- | --- | --- | --- |
+| FEMBA | EEG | Efficient bidirectional Mamba model for long EEG sequences. | [Documentation](../docs/model/FEMBA.md) / [Hugging Face](https://huggingface.co/PulpBio/FEMBA) |
+| LUNA | EEG | Query-based channel unification for topology-agnostic EEG modeling. | [Documentation](../docs/model/LUNA.md) / [Hugging Face](https://huggingface.co/PulpBio/LUNA) |
+| TinyMyo | sEMG | Compact rotary Transformer designed for flexible EMG processing and edge deployment. | [Documentation](../docs/model/TinyMyo.md) / [Hugging Face](https://huggingface.co/PulpBio/TinyMyo) |
+| LuMamba | EEG | LUNA-style channel unification with efficient Mamba temporal modeling. | [Documentation](../docs/model/LuMamba.md) / [Hugging Face](https://huggingface.co/PulpBio/LuMamba) |
+| PanLUNA | EEG, ECG, PPG | Sensor-aware query unification for unimodal and multimodal biosignal learning. | [Documentation](../docs/model/PanLUNA.md) / [Hugging Face](https://huggingface.co/PulpBio/PanLUNA) |
+
+Use the matching pre-training or fine-tuning experiment in [`../config/experiment`](../config/experiment/) rather than instantiating a model in isolation when starting a reproducible run.

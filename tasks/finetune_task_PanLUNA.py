@@ -32,6 +32,7 @@ from torchmetrics.classification import (
 from collections import OrderedDict
 from safetensors.torch import load_file
 from peft import LoraConfig, get_peft_model, TaskType
+from biofoundation.core.batch import as_signal_batch
 
 class ChannelWiseNormalize:
     def __init__(self, eps=1e-8):
@@ -293,6 +294,7 @@ class FinetuneTask(pl.LightningModule):
         }
 
     def training_step(self, batch, batch_idx):
+        batch = as_signal_batch(batch)
         X, y = batch["input"], batch["label"]
             
         channel_locations = batch["channel_locations"]
@@ -322,6 +324,7 @@ class FinetuneTask(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
+        batch = as_signal_batch(batch)
         X, y = batch["input"], batch["label"]
        
         channel_locations = batch["channel_locations"]
@@ -349,6 +352,7 @@ class FinetuneTask(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
+        batch = as_signal_batch(batch)
         X, y = batch["input"], batch["label"]
 
         channel_locations = batch["channel_locations"]

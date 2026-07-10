@@ -176,3 +176,27 @@ State-of-the-art on PTB-XL Super and CSN. QAT INT8 recovers ≥96% of FP32 AUROC
 - In the 4-class setting, PanLUNA achieves the strongest results among PPG-based foundation models under 10M parameters, with especially large gains over Light Pulse-PPG in AUC-PR.
 
 - The PPG+ECG setting does not consistently improve over PPG-only in the 4-class case, suggesting dataset- and modality-specific effects.
+
+---
+
+### Pretrained Weights
+
+The [PulpBio/PanLUNA Hugging Face repository](https://huggingface.co/PulpBio/PanLUNA) provides the pretrained pan-modal checkpoint and fine-tuning guidance.
+
+```python
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id="PulpBio/PanLUNA",
+    local_dir="checkpoints/PanLUNA",
+)
+```
+
+Run fine-tuning from the repository root:
+
+```bash
+python -u run_train.py +experiment=PanLUNA_finetune \
+  pretrained_safetensors_path=/absolute/path/to/checkpoints/PanLUNA/PanLUNA.safetensors
+```
+
+Choose `finetune_data_module_unimodal_PanLUNA` or `finetune_data_module_multimodal_PanLUNA` in the experiment config. Set `classification_type`, `model.num_classes`, channel groups, and `finetuning.mode` (`full`, `freeze_encoder`, or `lora`) for the target task.

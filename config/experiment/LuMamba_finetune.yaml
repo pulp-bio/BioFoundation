@@ -67,7 +67,7 @@ defaults:
   - override /data_module: finetune_data_module 
   - override /model: LuMamba_tiny
   - override /scheduler: cosine
-  - override /task: "#CHANGEME" # override with "finetune_task_LUNA" for classification and "finetune_regression_task_LuMamba" for regression tasks
+  - override /task: finetune_task_LUNA # Use finetune_regression_task_LuMamba for regression tasks
   - override /criterion: finetune_criterion
 
 # Change _target_ to corresponding dataset wrapper for finetuning dataset

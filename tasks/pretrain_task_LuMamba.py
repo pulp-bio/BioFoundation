@@ -33,6 +33,8 @@ from models.modules.channel_embeddings import CHANNEL_IDX_TO_NAMES
 import psutil, os
 import gc
 
+from biofoundation.core.batch import as_signal_batch
+
 def is_dist_initialized():
     return dist.is_available() and dist.is_initialized()
 
@@ -406,6 +408,7 @@ class MaskTask(pl.LightningModule):
         Returns:
             torch.Tensor: Loss value.
         """
+        batch = as_signal_batch(batch)
         X = batch["input"]
         channel_locations = batch["channel_locations"]
         channel_names = batch.get("channel_names", None)
@@ -473,6 +476,7 @@ class MaskTask(pl.LightningModule):
         Returns:
             torch.Tensor: Loss value.
         """
+        batch = as_signal_batch(batch)
         X = batch["input"]
         channel_locations = batch["channel_locations"]
         channel_names = batch.get("channel_names", None)

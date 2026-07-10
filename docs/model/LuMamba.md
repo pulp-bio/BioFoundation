@@ -149,3 +149,25 @@ Larger model sizes can be attained by increasing the number of bi-Mamba blocks `
 - LuMamba-Tiny (reconstruction-only): 0.11 $R^2$, 0.38 Pearson's correlation.
 
 ---
+
+### Pretrained Weights
+
+The [PulpBio/LuMamba Hugging Face repository](https://huggingface.co/PulpBio/LuMamba) provides LeJEPA-only, reconstruction-only, and mixed pre-training variants.
+
+```python
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id="PulpBio/LuMamba",
+    local_dir="checkpoints/LuMamba",
+)
+```
+
+Run fine-tuning from the repository root:
+
+```bash
+python -u run_train.py +experiment=LuMamba_finetune \
+  pretrained_safetensors_path=/absolute/path/to/checkpoints/LuMamba/LuMamba.safetensors
+```
+
+Use the preprocessing scripts in `make_datasets/` for downstream datasets, then update `config/experiment/LuMamba_finetune.yaml` for the dataset paths, task type, class count, and trainer settings.

@@ -34,6 +34,7 @@ layerwise_lr_decay: 0.75
 scheduler_type: cosine
 
 pretrained_checkpoint_path:  null
+pretrained_safetensors_path: null
 
 input_normalization:
   normalize: True
@@ -82,4 +83,3 @@ scheduler:
   min_lr: 2.5e-6 # minimum LR for the cosine scheduler
   warmup_lr_init: 2.5e-7 # initial LR for the warmup phase 
   warmup_epochs: 10
-

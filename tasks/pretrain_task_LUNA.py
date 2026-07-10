@@ -25,6 +25,7 @@ import torch_optimizer as torch_optim
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import numpy as np
+from biofoundation.core.batch import as_signal_batch
 from criterion.query_specialization_criterion import QuerySpecializationCriterion
 
 class ChannelWiseNormalize:
@@ -107,6 +108,7 @@ class MaskTask(pl.LightningModule):
         Returns:
             torch.Tensor: Loss value.
         """
+        batch = as_signal_batch(batch)
         X = batch["input"]
         channel_locations = batch["channel_locations"]
         channel_names = batch.get("channel_names", None)
@@ -140,6 +142,7 @@ class MaskTask(pl.LightningModule):
         Returns:
             torch.Tensor: Loss value.
         """
+        batch = as_signal_batch(batch)
         X = batch["input"]
         channel_locations = batch["channel_locations"]
         channel_names = batch.get("channel_names", None)

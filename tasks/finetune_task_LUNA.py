@@ -29,6 +29,7 @@ from torchmetrics.classification import (
     Accuracy, Precision, Recall, AUROC,
     AveragePrecision, CohenKappa, F1Score
 )
+from biofoundation.core.batch import as_signal_batch
 from safetensors.torch import load_file
 from collections import OrderedDict
 
@@ -219,6 +220,7 @@ class FinetuneTask(pl.LightningModule):
         }
 
     def training_step(self, batch, batch_idx):
+        batch = as_signal_batch(batch)
         X, y = batch["input"], batch["label"]
         channel_locations = batch["channel_locations"]
         if self.normalize:
@@ -240,6 +242,7 @@ class FinetuneTask(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
+        batch = as_signal_batch(batch)
         X, y = batch["input"], batch["label"]
         channel_locations = batch["channel_locations"]
         if self.normalize:
@@ -262,6 +265,7 @@ class FinetuneTask(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
+        batch = as_signal_batch(batch)
         X, y = batch["input"], batch["label"]
         channel_locations = batch["channel_locations"]
         if self.normalize:

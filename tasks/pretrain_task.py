@@ -24,6 +24,7 @@ import torch_optimizer as torch_optim
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import numpy as np
+from biofoundation.core.batch import as_signal_batch
 from util.train_utils import RobustQuartileNormalize
 
 
@@ -97,7 +98,8 @@ class MaskTask(pl.LightningModule):
         Returns:
             torch.Tensor: Loss value.
         """
-        X = batch
+        batch = as_signal_batch(batch)
+        X = batch["input"]
         mask = self.generate_mask(X.shape[0], X.shape[1], X.shape[2])
 
         if self.normalize:
@@ -124,7 +126,8 @@ class MaskTask(pl.LightningModule):
         Returns:
             torch.Tensor: Loss value.
         """
-        X = batch
+        batch = as_signal_batch(batch)
+        X = batch["input"]
         mask = self.generate_mask(X.shape[0], X.shape[1], X.shape[2])
 
         if self.normalize:

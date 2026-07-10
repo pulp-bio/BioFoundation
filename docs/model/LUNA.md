@@ -118,3 +118,27 @@ LUNA is available in three sizes, scaled by increasing the depth of the temporal
 
 **SEED-V (Emotion Recognition)**
 -   LUNA-Large: 39.18% balanced accuracy.
+
+---
+
+### Pretrained Weights
+
+The [PulpBio/LUNA Hugging Face repository](https://huggingface.co/PulpBio/LUNA) provides Base, Large, and Huge checkpoints matching the model configs in `config/model/`.
+
+```python
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id="PulpBio/LUNA",
+    local_dir="checkpoints/LUNA",
+)
+```
+
+Select the matching model size and checkpoint:
+
+```bash
+python -u run_train.py +experiment=LUNA_finetune /model=LUNA_base \
+  pretrained_safetensors_path=/absolute/path/to/checkpoints/LUNA/Base/LUNA_base.safetensors
+```
+
+For TUH datasets, use `finetune_data_module`; for subject-independent datasets such as SEED-V, use `subject_independent_data_module`. Update the experiment's `classification_type`, `model.num_classes`, and `#CHANGEME` paths for the downstream task.

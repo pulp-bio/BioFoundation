@@ -10,6 +10,7 @@ dependencies = [
   "fvcore",
   "omegaconf",
   "hydra-core",
+  "peft",
   "scipy",
   "h5py",
   "python-dateutil",
@@ -23,7 +24,6 @@ dependencies = [
   "torch>=2.4.0, <2.8.0",
   "scikit-learn",
   "tensorboard",
-  "tensorrt",
   "torch_optimizer",
   "tables",
   "timm",
@@ -33,6 +33,7 @@ dependencies = [
   "warmup-scheduler",
   "safetensors",
   "rotary-embedding-torch",
+  "wandb",
 ]
 
 [tool.uv.sources]

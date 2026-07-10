@@ -33,6 +33,8 @@ from tasks.finetune_task_LUNA import ChannelWiseNormalize
 from safetensors.torch import load_file
 from collections import OrderedDict
 
+from biofoundation.core.batch import as_signal_batch
+
 
 class FinetuneRegressionTask(pl.LightningModule):
     """
@@ -147,6 +149,7 @@ class FinetuneRegressionTask(pl.LightningModule):
         return y_pred
 
     def training_step(self, batch, batch_idx):
+        batch = as_signal_batch(batch)
         X, y = batch["input"], batch["label"]
         channel_locations = batch["channel_locations"]
 
@@ -170,6 +173,7 @@ class FinetuneRegressionTask(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
+        batch = as_signal_batch(batch)
         X, y = batch["input"], batch["label"]
         channel_locations = batch["channel_locations"]
 
@@ -194,6 +198,7 @@ class FinetuneRegressionTask(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
+        batch = as_signal_batch(batch)
         X, y = batch["input"], batch["label"]
         channel_locations = batch["channel_locations"]
 

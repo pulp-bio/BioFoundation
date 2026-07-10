@@ -17,7 +17,6 @@ tensorboardX
 git+https://github.com/ildoonet/pytorch-gradual-warmup-lr.git
 scikit-learn
 tensorboard
-tensorrt
 torch_optimizer
 tables
 timm

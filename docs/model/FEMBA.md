@@ -119,3 +119,23 @@ FEMBA supports multiple downstream EEG classification paradigms, particularly fo
 - FEMBA-Base: 0.731 AUROC
 
 ---
+
+### Pretrained Weights
+
+The [PulpBio/FEMBA Hugging Face repository](https://huggingface.co/PulpBio/FEMBA) provides task checkpoints for TUAB, TUAR, and TUSL. The checkpoint weights are licensed under CC BY-ND 4.0.
+
+```python
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id="PulpBio/FEMBA",
+    local_dir="checkpoints/FEMBA",
+)
+```
+
+Run fine-tuning from the repository root:
+
+```bash
+python -u run_train.py +experiment=FEMBA_finetune \
+  pretrained_safetensors_path=/absolute/path/to/checkpoints/FEMBA/TUAR/base.safetensors
+```

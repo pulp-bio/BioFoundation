@@ -1,4 +1,3 @@
-# @package _global_
 #*----------------------------------------------------------------------------*
 #* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
 #* SPDX-License-Identifier: Apache-2.0                                        *
@@ -15,8 +14,30 @@
 #* See the License for the specific language governing permissions and        *
 #* limitations under the License.                                             *
 #*                                                                            *
-#* Author:  Marija Zelic                                                      *
-#* Author:  Thorir Mar Ingolfsson                                             *
+#* Author:  BioFoundation Contributors                                       *
 #*----------------------------------------------------------------------------*
-task:
-  _target_: 'tasks.pretrain_task_PanLUNA.MaskTask'
+
+import unittest
+
+from biofoundation.core.environment import missing_environment_variables, require_environment
+
+
+class EnvironmentTest(unittest.TestCase):
+    def test_reports_unset_and_placeholder_values(self):
+        environ = {"DATA_PATH": "/data", "CHECKPOINT_DIR": "#CHANGEME"}
+        self.assertEqual(
+            missing_environment_variables(("DATA_PATH", "CHECKPOINT_DIR", "OUTPUT_PATH"), environ),
+            ("CHECKPOINT_DIR", "OUTPUT_PATH"),
+        )
+
+    def test_accepts_complete_environment(self):
+        require_environment(("DATA_PATH", "CHECKPOINT_DIR"), {"DATA_PATH": "/data", "CHECKPOINT_DIR": "/ckpt"})
+
+    def test_raises_one_actionable_error(self):
+        with self.assertRaisesRegex(RuntimeError, "DATA_PATH, CHECKPOINT_DIR"):
+            require_environment(("DATA_PATH", "CHECKPOINT_DIR"), {})
+
+
+if __name__ == "__main__":
+    unittest.main()
+

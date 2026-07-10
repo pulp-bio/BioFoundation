@@ -30,6 +30,7 @@ from torchmetrics.classification import (
     Accuracy, Precision, Recall, AUROC,
     AveragePrecision, CohenKappa, F1Score
 )
+from biofoundation.core.batch import as_signal_batch
 from util.train_utils import RobustQuartileNormalize
 
 class FinetuneTask(pl.LightningModule):
@@ -184,7 +185,8 @@ class FinetuneTask(pl.LightningModule):
         }
 
     def training_step(self, batch, batch_idx):
-        X, y = batch
+        batch = as_signal_batch(batch)
+        X, y = batch["input"], batch["label"]
         if self.normalize:
             X = self.normalize_fct(X)
         mask = self.generate_fake_mask(X.shape[0], X.shape[1], X.shape[2])
@@ -208,7 +210,8 @@ class FinetuneTask(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        X, y = batch
+        batch = as_signal_batch(batch)
+        X, y = batch["input"], batch["label"]
         if self.normalize:
             X = self.normalize_fct(X)
         mask = self.generate_fake_mask(X.shape[0], X.shape[1], X.shape[2])
@@ -232,7 +235,8 @@ class FinetuneTask(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
-        X, y = batch
+        batch = as_signal_batch(batch)
+        X, y = batch["input"], batch["label"]
         if self.normalize:
             X = self.normalize_fct(X)
         mask = self.generate_fake_mask(X.shape[0], X.shape[1], X.shape[2])

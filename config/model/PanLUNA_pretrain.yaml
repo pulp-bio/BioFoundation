@@ -1,3 +1,4 @@
+# @package _global_
 #*----------------------------------------------------------------------------*
 #* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
 #* SPDX-License-Identifier: Apache-2.0                                        *
@@ -17,7 +18,6 @@
 #* Author:  Marija Zelic                                                      *
 #* Author:  Thorir Mar Ingolfsson                                             *
 #*----------------------------------------------------------------------------*
-# @package _global_
 model:
   _target_: models.PanLUNA.PanLUNA
   patch_size: 32

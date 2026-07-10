@@ -24,6 +24,7 @@ import torch
 import torch_optimizer as torch_optim
 from omegaconf import DictConfig
 
+from biofoundation.core.batch import as_signal_batch
 from util.train_utils import MinMaxNormalization
 
 
@@ -109,7 +110,8 @@ class MaskTask(pl.LightningModule):
         Returns:
             torch.Tensor: Loss value.
         """
-        X = batch
+        batch = as_signal_batch(batch)
+        X = batch["input"]
         mask = self.generate_mask(X.shape[0], X.shape[1], X.shape[2])
 
         if self.normalize:
@@ -145,7 +147,8 @@ class MaskTask(pl.LightningModule):
         Returns:
             torch.Tensor: Loss value.
         """
-        X = batch
+        batch = as_signal_batch(batch)
+        X = batch["input"]
         mask = self.generate_mask(X.shape[0], X.shape[1], X.shape[2])
 
         if self.normalize:

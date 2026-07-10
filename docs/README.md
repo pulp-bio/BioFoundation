@@ -1,10 +1,10 @@
-Copyright (C) 2025 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file at the root of the repository for details.
+Copyright (C) 2025-2026 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0. See LICENSE file at the root of the repository for details.
 
 # Documentation
 
-Welcome to the documentation for **BioFoundation**. This directory provides in-depth information about the core components of the repository, including the architecture of our models, the datasets we use, and the training tasks we implement.
+Welcome to the BioFoundation documentation. This directory covers the model families, biosignal datasets, and PyTorch Lightning training tasks used by the repository.
 
-Good documentation is essential for reproducible and collaborative research. We have aimed to provide clear and comprehensive explanations to help you understand, use, and extend our work.
+Start with the root [`README.md`](../README.md) to choose a model and launch an experiment. Use the pages here when adapting an architecture, dataset, or task.
 
 ---
 
@@ -12,34 +12,35 @@ Good documentation is essential for reproducible and collaborative research. We 
 
 This documentation is organized into the following sections:
 
-### 1. **[Datasets](./datasets/)**
+### 1. [Models](./model/)
 
-This section provides detailed descriptions of the various EEG datasets used for pre-training and fine-tuning in this project. You will find information on:
--   The **TUH EEG Corpus (TUEG)**, used for our large-scale self-supervised pre-training.
--   The **TUH Abnormal EEG (TUAB)** dataset for normal vs. abnormal classification.
--   The **TUH Artifact (TUAR)** dataset for artifact detection tasks.
--   The **TUH Slowing (TUSL)** dataset for identifying slowing events in EEG signals.
+Architecture and usage notes are available for every published model family:
 
-Each document covers the dataset's purpose, size, and specific characteristics.
+- [FEMBA](./model/FEMBA.md): bidirectional Mamba for EEG.
+- [LUNA](./model/LUNA.md): query-unified, topology-agnostic EEG.
+- [TinyMyo](./model/TinyMyo.md): compact foundation model for sEMG.
+- [LuMamba](./model/LuMamba.md): query-unified Mamba for EEG.
+- [PanLUNA](./model/PanLUNA.md): sensor-aware modeling across EEG, ECG, and PPG.
 
-### 2. **[Model](./model/)**
+Each model also has a pretrained release linked from the root model zoo. The canonical machine-readable index is [`biofoundation/model_registry.py`](../biofoundation/model_registry.py).
 
-This section contains a detailed breakdown of our model architectures, **FEMBA** and **LUNA**. For **FEMBA** The documentation covers:
--   The **architecture overview**, including the tokenizer, encoder, decoder, and classifier heads.
--   The **bidirectional Mamba block** that forms the core of our encoder.
--   Details on **model variants** (e.g., FEMBA-tiny, FEMBA-base, FEMBA-large).
--   The self-supervised learning objective and classification protocols.
-For **LUNA**, the documentation includes:
--   The **architecture overview**, including the path-feature extraction, channel-unification module, patch-wise temporal encoder, decoder, and classifier heads.
--   The self-supervised learning objective and classification protocols.
--   Details on **model variants** (e.g., LUNA-base, LUNA-large, LUNA-huge).
+### 2. [Datasets](./datasets/)
 
+The dataset pages describe preparation and evaluation protocols for the TUH EEG corpora used in pre-training and downstream tasks, including TUEG, TUAB, TUAR, and TUSL. Additional preprocessing entry points for EEG, EMG, ECG, and PPG datasets live in [`make_datasets`](../make_datasets/).
 
-### 3. **[Tasks](./tasks/)**
+### 3. [Tasks](./tasks/)
 
-This section describes the PyTorch Lightning `LightningModule` implementations that define our training pipelines. It explains:
--   The **`PretrainTask`**, which handles the self-supervised masked signal reconstruction.
--   The **`FinetuneTask`**, which manages the supervised training for downstream classification tasks.
--   Details on the data flow, loss computation, metrics, and optimization strategies for each task.
+The task pages describe the Lightning modules for self-supervised pre-training, classification, and regression. Task steps normalize incoming data through [`SignalBatch`](../biofoundation/core/batch.py), which provides a common input contract while preserving model-specific channel and sensor metadata.
 
-We encourage you to explore these documents to gain a deeper understanding of the components that make up the BioFoundation framework.
+### 4. [Training Guide](./TRAINING.md)
+
+The training guide covers environment variables, Hydra experiment selection, the shared batch contract, distributed training, checkpoints, and fast validation.
+
+### 5. Project References
+
+- [`CONTRIBUTING.md`](../CONTRIBUTING.md) defines extension and pull request expectations.
+- [`CITATIONS.md`](./CITATIONS.md) contains BibTeX for all five model families.
+- [`config/README.md`](../config/README.md) explains Hydra composition and overrides.
+- [`make_datasets/README.md`](../make_datasets/README.md) documents preprocessing and HDF5 conversion.
+
+ARES deployment documentation remains self-contained under [`ARES/docs`](../ARES/docs/) because it uses an independent environment and workflow.

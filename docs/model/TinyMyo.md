@@ -247,3 +247,30 @@ This is the **first demonstration of an EMG FM on a microcontroller**.
 * **Speech Recognition:** WER 33.95%
 
 Overall TinyMyo matches or exceeds state-of-the-art while being on par with or smaller than prior EMG foundation models.
+
+---
+
+## Pretrained Weights
+
+The [PulpBio/TinyMyo Hugging Face repository](https://huggingface.co/PulpBio/TinyMyo) provides task checkpoints for DB5, UCI EMG, and EPN612, along with dataset download and preprocessing scripts.
+
+```python
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id="PulpBio/TinyMyo",
+    local_dir="checkpoints/TinyMyo",
+)
+```
+
+Run fine-tuning from the repository root:
+
+```bash
+python -u run_train.py +experiment=TinyMyo_finetune \
+  pretrained_safetensors_path=/absolute/path/to/checkpoints/TinyMyo/UCI_EMG/base.safetensors
+```
+
+Related experiments remain in dedicated repositories:
+
+- [Silent Speech](https://github.com/MatteoFasulo/silent_speech)
+- [Generic Neuromotor Interface](https://github.com/MatteoFasulo/generic-neuromotor-interface)

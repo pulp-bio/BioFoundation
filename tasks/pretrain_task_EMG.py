@@ -122,7 +122,8 @@ class MaskTask(pl.LightningModule):
 
 
     def training_step(self, X, batch_idx):
-        out = self._step(X)
+        batch = as_signal_batch(X)
+        out = self._step(batch)
         x_original = out["x_original"]
         mask = out["mask"]
 
@@ -140,7 +141,8 @@ class MaskTask(pl.LightningModule):
         return loss
 
     def validation_step(self, X, batch_idx):
-        out = self._step(X)
+        batch = as_signal_batch(X)
+        out = self._step(batch)
         x_original = out["x_original"]
         x_reconstructed = self.unpatchify(out["x_reconstructed"], in_chans=self.model.in_chans)
         mask = out["mask"]

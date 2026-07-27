@@ -158,11 +158,16 @@ TinyMyo supports three major categories:
 
 #### Hand Gesture Classification
 
-Evaluated on:
+Released classification checkpoints use the following label conventions:
 
-* **Ninapro DB5** (52 classes, 10 subjects, 200 Hz)
-* **EPN-612** (5 classes, 612 subjects, 200 Hz)
-* **UCI EMG** (6 classes, 36 subjects, 200 Hz)
+| Dataset | Input channels | Classes | Label convention |
+| --- | ---: | ---: | --- |
+| NinaPro DB5 | 16 | 53 | 52 gestures + resting |
+| EPN-612 | 8 | 6 | 5 gestures + hand relaxed |
+| UCI EMG | 8 | 6 | Dataset-specific six-class gesture labels |
+
+Additional downstream evaluations include:
+
 * **Generic Neuromotor Interface** (Meta wristband; 9 gestures)
   * Repository: [MatteoFasulo/generic-neuromotor-interface](https://github.com/MatteoFasulo/generic-neuromotor-interface)
 
@@ -246,8 +251,18 @@ For current deployment measurements and benchmark results, refer to the
 ### Pretrained Weights
 
 The [PulpBio/TinyMyo Hugging Face repository](https://huggingface.co/PulpBio/TinyMyo)
-provides the pretrained model card and downloadable checkpoints. The repository
-configuration is the source of truth for model construction and fine-tuning entry points.
+provides the pretrained model card and downloadable checkpoints.
+
+| Checkpoint | Task | `in_chans` | `num_classes` | File |
+| --- | --- | ---: | ---: | --- |
+| TinyMyo pretraining | Reconstruction | 16 | 0 | `pretraining/TinyMyo/TinyMyo.safetensors` |
+| DB5 | Classification | 16 | 53 | `DB5/DB5_finetune_5sec.safetensors` |
+| EPN-612 | Classification | 8 | 6 | `EPN612/EPN_finetune_5sec.safetensors` |
+| UCI EMG | Classification | 8 | 6 | `UCI_EMG/UCI_finetune_5sec.safetensors` |
+| DB8 | Regression | 16 | 5 | `DB8/DB8_finetune_500ms.safetensors` |
+
+The model configuration must match the checkpoint, especially `in_chans`,
+`num_classes`, and `task`.
 
 ```python
 from huggingface_hub import snapshot_download
@@ -258,12 +273,18 @@ snapshot_download(
 )
 ```
 
-Run fine-tuning from the repository root:
+The built-in `TinyMyo_finetune` experiment currently points to the UCI EMG
+HDF5 files. From a BioFoundation checkout, run the UCI checkpoint with:
 
 ```bash
 python -u run_train.py +experiment=TinyMyo_finetune \
-  pretrained_safetensors_path=/absolute/path/to/checkpoints/TinyMyo/UCI_EMG/base.safetensors
+  model.in_chans=8 \
+  pretrained_safetensors_path=/absolute/path/to/TinyMyo/UCI_EMG/UCI_finetune_5sec.safetensors
 ```
+
+DB5, EPN-612, and DB8 require dataset-specific data-module configuration in
+addition to the matching checkpoint. There is currently no ready-made
+dataset-specific experiment for those three releases in this repository.
 
 Related experiments remain in dedicated repositories:
 

@@ -594,6 +594,21 @@ class TinyMyo(nn.Module):
 
     def __post_init__(self):
         super().__init__()
+
+        # The model has a fixed bank of channel embeddings for up to 16
+        # channels. Runtime inputs may use fewer channels, but never more.
+        assert 0 < self.in_chans <= 16, (
+            f"in_chans must be between 1 and 16, got {self.in_chans}"
+        )
+        assert self.embed_dim % self.n_head == 0, (
+            f"embed_dim ({self.embed_dim}) must be divisible by "
+            f"n_head ({self.n_head})"
+        )
+        head_dim = self.embed_dim // self.n_head
+        assert head_dim % 2 == 0, (
+            f"Per-head dimension ({head_dim}) must be even for RoPE"
+        )
+
         # Learnable mask token for pretraining (dimension: embed_dim)
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
 
@@ -726,6 +741,10 @@ class TinyMyo(nn.Module):
         pad_mask_ch: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         B, C, T = x_signal.shape
+        assert C <= 16, f"Input has {C} channels, but TinyMyo supports at most 16."
+        assert T == self.img_size, (
+            f"Input length ({T}) must match img_size ({self.img_size})"
+        )
         x = self.prepare_tokens(x_signal, mask=mask)
 
         _, N, _ = x.shape

@@ -22,6 +22,10 @@ Unless otherwise specified, TinyMyo uses:
   * Per-channel z-score normalization (downstream)
 
 Datasets with fewer than 16 channels are *zero-padded* only during pretraining.
+The model supports at most 16 runtime channels. When fewer channels are supplied,
+the corresponding prefix of the 16 learned channel-slot embeddings is used.
+The default model expects exactly 1000 temporal samples; inputs with a different
+length must use a model configuration with a matching `img_size`.
 
 ---
 
@@ -45,7 +49,24 @@ Unlike 2D (channel-mixing) tokenizers in EEG FMs, TinyMyo uses **strictly per-ch
 * Sequence length: **800 tokens** (16 x 50)
 * Positional encoding: **RoPE** (Rotary Position Embeddings)
 
+Tokens are ordered channel-major: all temporal patches from channel 0 are followed
+by all patches from channel 1, and so on. RoPE positions reset for each channel,
+so the first patch of two different channels has the same temporal position. This
+prevents the flattened token order from being interpreted as a physical temporal
+gap between channels.
+
 This preserves electrode-specific information while letting attention learn cross-channel relationships.
+
+The learned `channel_embed` is a channel-slot embedding. It identifies the
+channel index used by the input tensor; it is not an electrode-coordinate or
+sensor-placement embedding. Consequently, heterogeneous sensor layouts remain
+structurally supported, but channel ordering should be documented by each data
+pipeline and is not automatically aligned by physical electrode location.
+
+During pretraining, zero-padded channels are identified by `pad_mask_ch`. Any
+masking assigned to those channels is cleared, and padded tokens are excluded
+from the set of attention keys. The reconstruction target still follows the
+pretraining task's configured masked and unmasked loss weighting.
 
 ### **Transformer Encoder**
 
@@ -100,6 +121,28 @@ EMG -> Channel-indep. patching -> Masking -> Transformer Encoder -> Linear Decod
 ```
 EMG -> Patching -> Transformer Encoder -> Channel fusion -> Temporal pooling -> Task-specific head
 ```
+
+### **Implementation Contract**
+
+For the default configuration:
+
+| Quantity | Value |
+| --- | ---: |
+| Input shape | `(B, 16, 1000)` |
+| Temporal patch size | `20` samples |
+| Patches per channel | `50` |
+| Encoder tokens | `800` |
+| Token dimension | `192` |
+| Attention heads | `3` |
+| Per-head dimension | `64` |
+
+`embed_dim` must be divisible by `n_head`, and the per-head dimension must be
+even because RoPE rotates pairs of features. `img_size` must be divisible by
+`patch_size`, and runtime input length must match `img_size`.
+
+The task heads return `(B, num_classes)` for classification and
+`(B, img_size, num_classes)` for regression. In pretraining, the linear decoder
+returns one reconstructed patch of length `patch_size` per encoder token.
 
 ---
 

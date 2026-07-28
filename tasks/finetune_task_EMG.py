@@ -50,7 +50,6 @@ class FinetuneTask(pl.LightningModule):
     Attributes:
         model (nn.Module): The instantiated neural network.
         num_classes (int): Number of target classes or regression outputs.
-        classification_type (str): Format of classification (e.g., 'bc', 'ml').
         task (str): The specific task type ('classification' or 'regression').
         normalize (bool): Whether input normalization is enabled.
         criterion (nn.Module): The loss function (CrossEntropy or L1).
@@ -70,7 +69,6 @@ class FinetuneTask(pl.LightningModule):
         self.save_hyperparameters(hparams)
         self.model = hydra.utils.instantiate(self.hparams.model)
         self.num_classes = self.hparams.model.num_classes
-        self.classification_type = self.hparams.model.classification_type
         self.task = self.hparams.model.task
 
         # Enable normalization if specified in parameters
@@ -232,17 +230,11 @@ class FinetuneTask(pl.LightningModule):
         Returns:
             dict: Dictionary with keys "label", "probs", and "logits".
 
-        Raises:
-            NotImplementedError: If classification_type is not 'bc' or 'ml'.
         """
-        y_pred_logits, _ = self.model(X, mask=mask)
-
-        if self.classification_type in ("bc", "ml"):
-            y_pred_probs = torch.softmax(y_pred_logits, dim=1)
-            y_pred_label = torch.argmax(y_pred_probs, dim=1)
-
-        else:
-            raise NotImplementedError(f"No valid classification type: {self.classification_type}")
+        # TinyMyo returns classification logits directly
+        y_pred_logits = self.model(X, mask=mask)
+        y_pred_probs = torch.softmax(y_pred_logits, dim=1)
+        y_pred_label = torch.argmax(y_pred_probs, dim=1)
 
         return {
             "label": y_pred_label,
@@ -391,7 +383,7 @@ class FinetuneTask(pl.LightningModule):
         Returns:
             torch.Tensor: Logits/probabilities for the positive class if binary, else full preds.
         """
-        if self.classification_task == "binary" and self.classification_type != "mc":
+        if self.classification_task == "binary":
             return preds[:, 1].squeeze()
         else:
             return preds

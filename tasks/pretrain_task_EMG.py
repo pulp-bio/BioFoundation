@@ -177,10 +177,20 @@ class MaskTask(pl.LightningModule):
             lr=self.hparams.optimizer.lr,
             weight_decay=self.hparams.optimizer.weight_decay,
         )
-        scheduler = hydra.utils.instantiate(self.hparams.scheduler, optimizer, total_training_opt_steps=self.trainer.estimated_stepping_batches)
+        scheduler_in_epochs = self.hparams.scheduler.t_in_epochs
+        total_training_opt_steps = (
+            self.hparams.scheduler.total_training_opt_steps
+            if scheduler_in_epochs
+            else self.trainer.estimated_stepping_batches
+        )
+        scheduler = hydra.utils.instantiate(
+            self.hparams.scheduler,
+            optimizer=optimizer,
+            total_training_opt_steps=total_training_opt_steps,
+        )
         lr_scheduler_config = {
             "scheduler": scheduler,
-            "interval": "step",
+            "interval": "epoch" if scheduler_in_epochs else "step",
             "frequency": 1,
             "monitor": "val_loss",
         }
@@ -188,7 +198,10 @@ class MaskTask(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": lr_scheduler_config}
 
     def lr_scheduler_step(self, scheduler, metric):
-        scheduler.step(self.global_step)
+        if self.hparams.scheduler.t_in_epochs:
+            scheduler.step(epoch=self.current_epoch)
+        else:
+            scheduler.step(self.global_step)
 
     def log_signals_with_mask(self, original, reconstructed, mask=None, batch_indices=None):
         """

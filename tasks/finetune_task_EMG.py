@@ -317,13 +317,16 @@ class FinetuneTask(pl.LightningModule):
         return loss
 
     def lr_scheduler_step(self, scheduler: torch.optim.lr_scheduler._LRScheduler, metric: Optional[torch.Tensor]) -> None:
-        """Custom scheduler step logic for step-based schedulers.
+        """Advance the scheduler using its configured time unit.
 
         Args:
             scheduler (torch.optim.lr_scheduler._LRScheduler): The optimizer scheduler.
             metric (Optional[torch.Tensor]): Optional metric for ReduceLROnPlateau.
         """
-        scheduler.step(epoch=self.current_epoch)
+        if self.hparams.scheduler.t_in_epochs:
+            scheduler.step(epoch=self.current_epoch)
+        else:
+            scheduler.step(self.global_step)
 
     def configure_optimizers(self) -> dict:
         """Configures optimizers and learning rate schedulers.
@@ -344,7 +347,7 @@ class FinetuneTask(pl.LightningModule):
 
         for name, param in self.model.named_parameters():
             lr = base_lr
-            if "norm_layers" in name:
+            if name.startswith("blocks."):
                 block_nr = int(name.split(".")[1])
                 lr *= decay_factor ** (num_blocks - block_nr)
             params_to_pass.append({"params": param, "lr": lr})
@@ -373,7 +376,7 @@ class FinetuneTask(pl.LightningModule):
 
         lr_scheduler_config = {
             "scheduler": scheduler,
-            "interval": "epoch",
+            "interval": "epoch" if self.hparams.scheduler.t_in_epochs else "step",
             "frequency": 1,
             "monitor": "val_loss",
         }

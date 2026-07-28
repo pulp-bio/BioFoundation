@@ -358,11 +358,17 @@ class FinetuneTask(pl.LightningModule):
             )
         else:
             raise NotImplementedError("No valid optimizer name")
+            
+        total_training_opt_steps = (
+          self.hparams.scheduler.total_training_opt_steps
+          if self.hparams.scheduler.t_in_epochs
+          else self.trainer.estimated_stepping_batches
+      )
 
         scheduler = hydra.utils.instantiate(
             self.hparams.scheduler,
             optimizer=optimizer,
-            total_training_opt_steps=self.trainer.estimated_stepping_batches,
+            total_training_opt_steps=total_training_opt_steps,
         )
 
         lr_scheduler_config = {

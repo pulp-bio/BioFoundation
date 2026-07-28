@@ -259,8 +259,8 @@ class FinetuneTask(pl.LightningModule):
         else:
             self.train_label_metrics(y_pred["label"], y)
             self.train_logit_metrics(self._handle_binary(y_pred["logits"]), y)
-            self.log_dict(self.train_label_metrics, on_step=True, on_epoch=False)
-            self.log_dict(self.train_logit_metrics, on_step=True, on_epoch=False)
+            self.log_dict(self.train_label_metrics, on_step=False, on_epoch=True)
+            self.log_dict(self.train_logit_metrics, on_step=False, on_epoch=True)
         self.log(
             "train_loss",
             loss,

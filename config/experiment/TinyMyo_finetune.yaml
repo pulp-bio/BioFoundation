@@ -21,7 +21,7 @@ tag: EMG_finetune
 
 gpus: -1
 num_nodes: 1
-num_workers: 4
+num_workers: 16
 batch_size: 32
 max_epochs: 50
 
@@ -32,6 +32,11 @@ finetune_pretrained: True
 resume: False
 
 layerwise_lr_decay: 0.90
+label_smoothing: 0.0
+classification_type: "mcc"
+
+input_normalization:
+    normalize: False
 
 pretrained_checkpoint_path: null
 pretrained_safetensors_path: null
@@ -62,6 +67,7 @@ trainer:
   devices: ${gpus}
   strategy: ddp_find_unused_parameters_true
   max_epochs: ${max_epochs}
+  gradient_clip_val: 1
 
 model_checkpoint:
   save_last: True
@@ -79,14 +85,14 @@ callbacks:
 
 optimizer:
   optim: 'AdamW'
-  lr: 5e-4
+  lr: 1e-4
   betas: [0.9, 0.98]
   weight_decay: 1e-2
 
 scheduler:
   trainer: ${trainer}
-  min_lr: 1e-5
-  warmup_lr_init: 1e-5
+  min_lr: 1e-6
+  warmup_lr_init: 1e-6
   warmup_epochs: 5
   total_training_opt_steps: ${max_epochs}
   t_in_epochs: True
@@ -96,4 +102,4 @@ wandb:
   project: "TinyMyo"
   save_dir: ${env:LOG_DIR}
   run_name: "TinyMyo-Finetuning"
-  offline: True
+  offline: False

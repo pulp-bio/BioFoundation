@@ -47,7 +47,7 @@ masking:
   unmasked_loss_coeff: 0.1
 
 input_normalization:
-  normalize: True
+  normalize: False
 
 model:
   n_layer: 8

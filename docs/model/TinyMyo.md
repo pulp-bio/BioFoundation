@@ -19,8 +19,10 @@ The standard preprocessing pipeline is:
 
 * 4th-order **20–450 Hz bandpass**
 * **Notch filter** at 50 Hz
-* Per-channel min–max normalization (pretraining)
-* Per-channel z-score normalization (downstream)
+* Per-channel min–max normalization in the pretraining dataset
+* Downstream inputs are used as stored by default; setting
+  `input_normalization.normalize=true` applies per-channel min–max
+  normalization in the EMG fine-tuning task
 
 Datasets with fewer than 16 channels are *zero-padded* only during pretraining.
 The model supports at most 16 runtime channels. When fewer channels are supplied,
@@ -98,8 +100,22 @@ The repository configurations define the following defaults:
 * **Pretraining**: AdamW, learning rate `5e-4`, weight decay `1e-2`, 30 epochs,
   3 warm-up epochs, batch size 512, and `bf16-mixed` precision.
 * **Fine-tuning**: AdamW, learning rate `5e-4`, weight decay `1e-2`, 50 epochs,
-  and 5 warm-up epochs.
+  5 warm-up epochs, gradient clipping at `1.0`, and layer-wise LR decay `0.9`.
 * Both schedules use cosine decay.
+
+#### EMG Fine-tuning Contract
+
+The default EMG fine-tuning experiment is single-label six-class gesture
+classification. It uses `classification_type: "mcc"`, cross-entropy with
+configurable `label_smoothing` (default `0.1`), and reports epoch-level
+accuracy, precision, recall, F1, AUROC, and average precision for training,
+validation, and test data.
+
+For a pretrained checkpoint, the fine-tuning model must match its encoder
+shape, especially `n_layer`, `embed_dim`, `n_head`, `patch_size`, and
+`in_chans`. For example, a four-block Tinyssimo checkpoint must be fine-tuned
+with `model.n_layer=4`; otherwise any additional blocks are randomly
+initialized when loading with `strict=False`.
 
 ---
 

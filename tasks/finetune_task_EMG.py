@@ -41,18 +41,25 @@ from util.train_utils import MinMaxNormalization
 
 
 class FinetuneTask(pl.LightningModule):
-    """PyTorch LightningModule for EMG fine-tuning tasks.
+    """PyTorch LightningModule for TinyMyo EMG fine-tuning.
 
-    This module manages the training, validation, and testing for both
-    classification (gesture detection) and regression (kinematic tracking) tasks.
-    It supports modular model architectures, metric collections, and layer-wise learning rate decay.
+    The classification path supports single-label tasks only: ``"bc"`` for
+    two classes and ``"mcc"`` for three or more mutually exclusive classes.
+    It trains with cross-entropy loss, configurable label smoothing, and
+    epoch-level classification metrics. The regression path uses L1 loss and
+    regression metrics.
+
+    TinyMyo returns raw logits directly. This task supplies an all-false mask
+    to keep the model interface shared with masked pretraining without masking
+    any fine-tuning input samples.
 
     Attributes:
         model (nn.Module): The instantiated neural network.
         num_classes (int): Number of target classes or regression outputs.
+        classification_type (str): ``"bc"`` or ``"mcc"`` for classification.
         task (str): The specific task type ('classification' or 'regression').
         normalize (bool): Whether input normalization is enabled.
-        criterion (nn.Module): The loss function (CrossEntropy or L1).
+        criterion (nn.Module): Cross-entropy or L1 loss.
     """
 
     def __init__(self, hparams: DictConfig):
@@ -62,8 +69,8 @@ class FinetuneTask(pl.LightningModule):
         provided task type.
 
         Args:
-            hparams (DictConfig): Configuration object containing 'model',
-                'optimizer', 'scheduler', and 'finetuning' parameters.
+            hparams (DictConfig): Configuration with model, optimizer,
+                scheduler, finetuning, and classification settings.
         """
         super().__init__()
         self.save_hyperparameters(hparams)
@@ -92,7 +99,10 @@ class FinetuneTask(pl.LightningModule):
 
         else:
             # Loss function
-            self.criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+            self.criterion = nn.CrossEntropyLoss(
+                label_smoothing=self.hparams.label_smoothing
+            )
+            self.classification_type = self.hparams.classification_type
 
             # Classification mode detection
             if not isinstance(self.num_classes, int):
@@ -103,6 +113,16 @@ class FinetuneTask(pl.LightningModule):
                 self.classification_task = "binary"
             else:
                 self.classification_task = "multiclass"
+
+            expected_classification_type = (
+                "bc" if self.classification_task == "binary" else "mcc"
+            )
+            if self.classification_type != expected_classification_type:
+                raise ValueError(
+                    "TinyMyo supports single-label binary ('bc') or multiclass "
+                    f"('mcc') classification; got {self.classification_type!r} "
+                    f"for num_classes={self.num_classes}."
+                )
 
             # Metrics
             label_metrics = MetricCollection(
@@ -208,7 +228,7 @@ class FinetuneTask(pl.LightningModule):
         print("Pretrained model ready.")
 
     def generate_fake_mask(self, batch_size: int, C: int, T: int) -> torch.Tensor:
-        """Creates a dummy boolean mask tensor to simulate attention masking.
+        """Creates an all-false mask for TinyMyo's shared model interface.
 
         Args:
             batch_size (int): Batch size (B).
@@ -216,22 +236,23 @@ class FinetuneTask(pl.LightningModule):
             T (int): Sequence length (tokens).
 
         Returns:
-            torch.Tensor: Boolean mask of shape (B, C, T) initialized to False.
+            torch.Tensor: Boolean mask of shape (B, C, T); no samples are masked.
         """
         return torch.zeros(batch_size, C, T, dtype=torch.bool).to(self.device)
 
     def _step(self, X: torch.Tensor, mask: Optional[torch.Tensor] = None) -> dict:
-        """Performs a forward pass and extracts probabilities and labels.
+        """Performs a TinyMyo forward pass and derives auxiliary class outputs.
 
         Args:
             X (torch.Tensor): Input EMG tensor of shape (B, C, T).
-            mask (Optional[torch.Tensor]): Attention mask. Defaults to None.
+            mask (Optional[torch.Tensor]): All-false fine-tuning mask. Defaults to None.
 
         Returns:
-            dict: Dictionary with keys "label", "probs", and "logits".
+            dict: Raw ``logits`` plus softmax ``probs`` and argmax ``label``.
+                The regression path consumes only the raw logits.
 
         """
-        # TinyMyo returns classification logits directly
+        # TinyMyo returns raw classification logits directly.
         y_pred_logits = self.model(X, mask=mask)
         y_pred_probs = torch.softmax(y_pred_logits, dim=1)
         y_pred_label = torch.argmax(y_pred_probs, dim=1)
@@ -331,8 +352,9 @@ class FinetuneTask(pl.LightningModule):
     def configure_optimizers(self) -> dict:
         """Configures optimizers and learning rate schedulers.
 
-        Implements layer-wise learning rate decay for the Transformer encoder/Mamba blocks,
-        ensuring lower layers decay more than the head.
+        Applies layer-wise learning-rate decay to TinyMyo transformer blocks.
+        The classification head and non-block parameters receive the base LR;
+        earlier encoder blocks receive progressively smaller LRs.
 
         Returns:
             dict: Configuration for the PyTorch Lightning trainer.

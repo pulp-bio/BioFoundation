@@ -28,7 +28,13 @@ from biofoundation.core.batch import BatchRequirements
 
 @dataclass(frozen=True)
 class ModelSpec:
-    """Human- and machine-readable entry for a BioFoundation model family."""
+    """Human- and machine-readable entry for a BioFoundation model family.
+
+    ``model_target`` names the module a family is built from. For families that bundle
+    their output layer into the model, that is the whole model. For families that
+    separate the two, it is the encoder, and ``head_targets`` lists the prediction
+    heads it can be paired with.
+    """
 
     display_name: str
     modalities: tuple[str, ...]
@@ -39,6 +45,9 @@ class ModelSpec:
     huggingface_url: str
     paper_url: str
     batch_requirements: BatchRequirements = BatchRequirements()
+    venue: str = ""
+    head_targets: tuple[str, ...] = ()
+    size_variants: tuple[str, ...] = ()
 
 
 MODEL_REGISTRY: Mapping[str, ModelSpec] = MappingProxyType(
@@ -52,6 +61,7 @@ MODEL_REGISTRY: Mapping[str, ModelSpec] = MappingProxyType(
             finetune_experiment="FEMBA_finetune",
             huggingface_url="https://huggingface.co/PulpBio/FEMBA",
             paper_url="https://arxiv.org/abs/2502.06438",
+            venue="EMBC 2025",
         ),
         "luna": ModelSpec(
             display_name="LUNA",
@@ -63,6 +73,8 @@ MODEL_REGISTRY: Mapping[str, ModelSpec] = MappingProxyType(
             huggingface_url="https://huggingface.co/PulpBio/LUNA",
             paper_url="https://arxiv.org/abs/2510.22257",
             batch_requirements=BatchRequirements(channel_locations=True),
+            venue="NeurIPS 2025",
+            size_variants=("base", "large", "huge"),
         ),
         "tinymyo": ModelSpec(
             display_name="TinyMyo",
@@ -73,6 +85,7 @@ MODEL_REGISTRY: Mapping[str, ModelSpec] = MappingProxyType(
             finetune_experiment="TinyMyo_finetune",
             huggingface_url="https://huggingface.co/PulpBio/TinyMyo",
             paper_url="https://arxiv.org/abs/2512.15729",
+            venue="arXiv preprint",
         ),
         "lumamba": ModelSpec(
             display_name="LuMamba",
@@ -84,6 +97,8 @@ MODEL_REGISTRY: Mapping[str, ModelSpec] = MappingProxyType(
             huggingface_url="https://huggingface.co/PulpBio/LuMamba",
             paper_url="https://arxiv.org/abs/2603.19100",
             batch_requirements=BatchRequirements(channel_locations=True),
+            venue="EUSIPCO 2026",
+            size_variants=("tiny",),
         ),
         "panluna": ModelSpec(
             display_name="PanLUNA",
@@ -98,6 +113,7 @@ MODEL_REGISTRY: Mapping[str, ModelSpec] = MappingProxyType(
                 channel_locations=True,
                 sensor_type=True,
             ),
+            venue="AICAS 2026",
         ),
     }
 )

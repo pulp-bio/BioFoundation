@@ -25,18 +25,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL_TARGET_PREFIXES = ("criterion.", "data_module.", "datasets.", "models.", "schedulers.", "tasks.")
-TASK_FILES = (
-    "finetune_regression_task_LuMamba.py",
-    "finetune_task.py",
-    "finetune_task_EMG.py",
-    "finetune_task_LUNA.py",
-    "finetune_task_PanLUNA.py",
-    "pretrain_task.py",
-    "pretrain_task_EMG.py",
-    "pretrain_task_LUNA.py",
-    "pretrain_task_LuMamba.py",
-    "pretrain_task_PanLUNA.py",
-)
+
+# Derived rather than listed so that adding a task file cannot silently opt out of the
+# shared batch-adapter contract below.
+TASK_FILES = tuple(sorted(path.name for path in (ROOT / "tasks").glob("*.py")))
 
 
 class RepositoryContractsTest(unittest.TestCase):

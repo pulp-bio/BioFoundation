@@ -57,6 +57,39 @@ class SignalBatchTest(unittest.TestCase):
         batch["sensor_type"] = object()
         self.assertIs(require_batch_fields(batch, requirements), batch)
 
+    def test_validates_paired_electrode_geometry_and_padding(self):
+        requirements = BatchRequirements(channel_coords=True, num_padded_channels=True)
+        batch = as_signal_batch({"input": object(), "channel_coords": object()})
+        with self.assertRaisesRegex(ValueError, "num_padded_channels"):
+            require_batch_fields(batch, requirements)
+
+        batch["num_padded_channels"] = object()
+        self.assertIs(require_batch_fields(batch, requirements), batch)
+
+    def test_geometry_representations_are_independent(self):
+        """A model requiring one geometry field is not satisfied by the other."""
+
+        coords_only = as_signal_batch({"input": object(), "channel_coords": object()})
+        with self.assertRaisesRegex(ValueError, "channel_locations"):
+            require_batch_fields(coords_only, BatchRequirements(channel_locations=True))
+
+        midpoints_only = as_signal_batch({"input": object(), "channel_locations": object()})
+        with self.assertRaisesRegex(ValueError, "channel_coords"):
+            require_batch_fields(midpoints_only, BatchRequirements(channel_coords=True))
+
+    def test_defaults_leave_existing_requirements_unchanged(self):
+        """Fields added for newer families must not alter an existing spec's equality."""
+
+        self.assertEqual(BatchRequirements(), BatchRequirements())
+        self.assertEqual(
+            BatchRequirements(channel_locations=True),
+            BatchRequirements(channel_locations=True),
+        )
+        self.assertNotEqual(
+            BatchRequirements(channel_locations=True),
+            BatchRequirements(channel_coords=True),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

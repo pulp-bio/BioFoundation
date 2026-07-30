@@ -29,24 +29,54 @@ class SignalBatch(TypedDict, total=False):
 
     Only ``input`` is universally required. Model adapters can require channel
     or sensor metadata without forcing simpler models to manufacture it.
+
+    Two independent electrode-geometry representations are supported, and a model
+    requires exactly one of them. They are peers rather than alternatives to convert
+    between, so a dataset declares which one it produces and the registry records
+    which one each model consumes:
+
+    ``channel_locations``
+        Shape ``(batch, channels, 3)``. One 3D coordinate per channel. For a bipolar
+        derivation this is the midpoint of the two electrodes. Consumed by LUNA,
+        LuMamba and PanLUNA.
+
+    ``channel_coords``
+        Shape ``(batch, channels, 2, 3)``. Both electrodes of every channel kept
+        separate, so a bipolar pair and a scalp-plus-reference channel stay
+        distinguishable. Consumed by S-CEReBrO.
+
+    Padding metadata describes how much of a sample is filler, which lets montages of
+    different sizes share one batch. It is only meaningful on mapping-shaped batches;
+    the tuple form accepted by :func:`as_signal_batch` cannot carry it.
     """
 
     input: Any
     label: Any
     channel_names: Any
     channel_locations: Any
+    channel_coords: Any
     sensor_type: Any
+    num_padded_channels: Any
+    num_padded_timesteps: Any
     metadata: Mapping[str, Any]
 
 
 @dataclass(frozen=True)
 class BatchRequirements:
-    """Metadata fields required by a particular model adapter."""
+    """Metadata fields required by a particular model adapter.
+
+    Every field defaults to ``False``, so a model only declares what it actually
+    reads. ``channel_locations`` and ``channel_coords`` are the two electrode-geometry
+    representations described on :class:`SignalBatch`; a model sets one of them.
+    """
 
     label: bool = False
     channel_names: bool = False
     channel_locations: bool = False
+    channel_coords: bool = False
     sensor_type: bool = False
+    num_padded_channels: bool = False
+    num_padded_timesteps: bool = False
 
 
 def as_signal_batch(batch: Any) -> SignalBatch:
@@ -80,7 +110,10 @@ def require_batch_fields(batch: SignalBatch, requirements: BatchRequirements) ->
         ("label", requirements.label),
         ("channel_names", requirements.channel_names),
         ("channel_locations", requirements.channel_locations),
+        ("channel_coords", requirements.channel_coords),
         ("sensor_type", requirements.sensor_type),
+        ("num_padded_channels", requirements.num_padded_channels),
+        ("num_padded_timesteps", requirements.num_padded_timesteps),
     )
     missing = [name for name, required in required_fields if required and name not in batch]
     if missing:

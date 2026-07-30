@@ -1,0 +1,100 @@
+# @package _global_
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  Glenn Anta Bucagu                                                 *
+#* Author:  BioFoundation Contributors                                        *
+#*----------------------------------------------------------------------------*
+tag: SCEReBrO_pretrain
+model_size: tiny
+
+# Names the registry entry whose BatchRequirements the task enforces on every batch.
+model_family: scerebro
+
+gpus: -1
+num_nodes: 1
+num_workers: 8
+batch_size: 32
+
+seed: 42
+training: True
+resume: False
+final_validate: True
+final_test: False
+find_unused_parameters: False
+
+pretrained_checkpoint_path: null
+pretrained_safetensors_path: null
+
+defaults:
+  - override /data_module: pretrain_data_module_SCEReBrO
+  - override /model: SCEReBrO_tiny        # or SCEReBrO_small, SCEReBrO_base
+  - override /task: pretrain_task_SCEReBrO
+  - override /criterion: masked_reconstruction_loss
+  - override /scheduler: cosine
+  # model_head is not part of the global defaults, so it is added here rather than
+  # overridden. The five bundled families compose exactly as before.
+  - /model_head: patch_reconstruction_head
+
+model:
+  num_channels: 64
+
+task:
+  masking_ratio: 0.5
+
+criterion:
+  loss_type: l2
+  alpha: 0.1
+
+io:
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  base_output_path: ${env:CHECKPOINT_DIR}/outputs
+  version: ${tag}_${model_size}
+
+callbacks:
+  lr_monitor:
+    _target_: 'pytorch_lightning.callbacks.LearningRateMonitor'
+    logging_interval: step
+  progress_bar:
+    _target_: 'pytorch_lightning.callbacks.TQDMProgressBar'
+    refresh_rate: 10
+
+model_checkpoint:
+  save_last: True
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 5
+
+trainer:
+  accelerator: gpu
+  num_nodes: ${num_nodes}
+  devices: ${gpus}
+  strategy: ddp
+  max_epochs: 50
+  check_val_every_n_epoch: 5
+  accumulate_grad_batches: 8
+
+optimizer:
+  optim: AdamW
+  lr: 1.25e-3
+  betas: [0.9, 0.98]
+  weight_decay: 0.05
+
+scheduler:
+  trainer: ${trainer}
+  warmup_epochs: 3
+  min_lr: 2.5e-7
+  warmup_lr_init: 2.5e-7

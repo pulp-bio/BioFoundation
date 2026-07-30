@@ -1,0 +1,119 @@
+# @package _global_
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  Glenn Anta Bucagu                                                 *
+#* Author:  BioFoundation Contributors                                        *
+#*----------------------------------------------------------------------------*
+tag: SCEReBrO_finetune
+model_size: tiny
+
+# Names the registry entry whose BatchRequirements the task enforces on every batch.
+model_family: scerebro
+
+# Fine-tuning dataset. Defaults to TUAB; switch corpus with a single override, e.g.
+#   python -u run_train.py +experiment=SCEReBrO_finetune \
+#       dataset_root=${env:DATA_PATH}/finetuning/CHB-MIT model.num_channels=16
+# docs/model/SCEReBrO.md lists the channel count, window length and class count for
+# each prepared dataset.
+dataset_root: ${env:DATA_PATH}/finetuning/TUAB
+dataset_kind: window          # 'window', or 'sequence' for ISRUC sleep staging
+label_mode: classification
+
+gpus: -1
+num_nodes: 1
+num_workers: 4
+batch_size: 64
+
+seed: 0
+training: True
+resume: False
+final_validate: True
+final_test: True
+find_unused_parameters: False
+
+pretrained_checkpoint_path: null
+pretrained_safetensors_path: null
+
+defaults:
+  - override /data_module: finetune_data_module_SCEReBrO
+  - override /model: SCEReBrO_tiny        # or SCEReBrO_small, SCEReBrO_base
+  - override /task: finetune_task_SCEReBrO
+  - override /criterion: ce_criterion
+  - override /scheduler: cosine
+  # For SEED-VIG vigilance regression, override these three together:
+  #   /model_head: mlp_regression_head, /task: finetune_regression_task_SCEReBrO,
+  #   /criterion: mse_criterion, and set label_mode=regression.
+  - /model_head: mlp_classification_head
+
+model:
+  num_channels: 22          # TUAB montage
+
+model_head:
+  num_classes: 2
+  num_patches: 10           # 10 s window at one patch per second
+
+task:
+  freeze_backbone: False    # True gives a linear-probe style run
+  layerwise_lr_decay: 0.95
+
+io:
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  base_output_path: ${env:CHECKPOINT_DIR}/outputs
+  version: ${tag}_${model_size}
+
+callbacks:
+  lr_monitor:
+    _target_: 'pytorch_lightning.callbacks.LearningRateMonitor'
+    logging_interval: step
+  progress_bar:
+    _target_: 'pytorch_lightning.callbacks.TQDMProgressBar'
+    refresh_rate: 50
+  early_stopping:
+    _target_: 'pytorch_lightning.callbacks.EarlyStopping'
+    monitor: 'val_loss'
+    patience: 35
+    mode: 'min'
+    verbose: True
+
+model_checkpoint:
+  save_last: True
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+  every_n_epochs: 1
+
+trainer:
+  accelerator: gpu
+  num_nodes: ${num_nodes}
+  devices: ${gpus}
+  strategy: ddp
+  max_epochs: 50
+  gradient_clip_val: 1
+  check_val_every_n_epoch: 1
+  accumulate_grad_batches: 1
+
+optimizer:
+  optim: AdamW
+  lr: 1e-4
+  betas: [0.9, 0.999]
+  weight_decay: 0.05
+
+scheduler:
+  trainer: ${trainer}
+  warmup_epochs: 5
+  min_lr: 1e-5
+  warmup_lr_init: 1e-5

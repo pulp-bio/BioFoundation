@@ -1,3 +1,4 @@
+# @package _global_
 #*----------------------------------------------------------------------------*
 #* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
 #* SPDX-License-Identifier: Apache-2.0                                        *
@@ -16,32 +17,36 @@
 #*                                                                            *
 #* Author:  Glenn Anta Bucagu                                                 *
 #* Author:  BioFoundation Contributors                                        *
-#*                                                                            *
-#* Imported from the S-CEReBrO reference implementation (TimeFM).             *
 #*----------------------------------------------------------------------------*
+model:
+  _target_: models.s_cerebro.SCerebroEncoder
 
-from typing import Dict
+  # Tokenisation. patch_size is fixed at 200 by TemporalConvTokenizer, which is one
+  # second at the 200 Hz sampling rate every S-CEReBrO dataset is resampled to.
+  patch_size: 200
+  num_channels: 64        # channels in the input; override per fine-tuning dataset
+  embed_dim: 200
+  depth: 12
+  num_heads: 10
+  mlp_ratio: 4.0
 
-import torch
-from torch import nn
+  # windowed-alternating is the published method. alternating and full are the
+  # ablation baselines from the paper.
+  attention_type: windowed-alternating
 
+  drop_path: 0.1
+  attn_drop: 0.1
+  proj_drop: 0.1
 
-class MSELossWrapper(nn.Module):
-    """Mean squared error loss for scalar regression targets."""
+  # Capacity of the positional tables. An encoder pre-trained at this capacity can be
+  # fine-tuned on fewer channels and shorter recordings without being rebuilt.
+  max_channels: 64
+  max_timesteps: 6000
 
-    def __init__(self, reduction: str = "mean"):
-        super().__init__()
-        self.loss_fn = nn.MSELoss(reduction=reduction)
-
-    def forward(self, pred: torch.Tensor, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
-        """Compute MSE against ``batch['label']``.
-
-        Args:
-            pred: Predictions broadcastable to the target shape.
-            batch: Must contain ``label`` with the regression targets.
-
-        Returns:
-            Scalar loss.
-        """
-        target = batch["label"]
-        return self.loss_fn(pred.reshape(target.shape).to(target.dtype), target)
+  window_size_spatial: 7
+  window_size_temporal: 5
+  dilation_cycle_spatial: [1, 2, 4]
+  dilation_cycle_temporal: [1, 2, 4]
+  shift_cycle_spatial: [-1, 1, -2, 2]
+  shift_cycle_temporal: [-1, 1, -2, 2]
+  use_axial_mode: False

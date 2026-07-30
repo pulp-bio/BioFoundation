@@ -4,11 +4,13 @@ omegaconf
 hydra-core
 scipy
 h5py
+lmdb
 python-dateutil
 lightning
 tqdm
 pandas
 mne
+asrpy
 nvidia-nccl-cu11
 peft
 psutil

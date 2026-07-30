@@ -1,9 +1,34 @@
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  Glenn Anta Bucagu                                                 *
+#* Author:  BioFoundation Contributors                                        *
+#*                                                                            *
+#* Imported from the S-CEReBrO reference implementation (TimeFM).             *
+#*----------------------------------------------------------------------------*
+
 from typing import Any, Dict
 
 import hydra
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
+from biofoundation.core.batch import BatchRequirements, as_signal_batch, require_batch_fields
+from biofoundation.core.checkpoints import SafetensorsCheckpointMixin
+from biofoundation.model_registry import get_model_spec
 from torchmetrics import Metric
 from torchmetrics.regression import MeanSquaredError, PearsonCorrCoef, R2Score
 
@@ -55,7 +80,7 @@ class NormalizedRootMeanSquaredError(Metric):
         return rmse / torch.clamp(norm, min=1e-8)
 
 
-class RegressionTask(pl.LightningModule):
+class RegressionTask(SafetensorsCheckpointMixin, pl.LightningModule):
     """Fine-tuning task for scalar EEG regression.
 
     Each sample is one window of shape ``(num_channels, num_timesteps)`` with a single
@@ -76,6 +101,11 @@ class RegressionTask(pl.LightningModule):
         self.model = hydra.utils.instantiate(self.hparams.model)
         self.model_head = hydra.utils.instantiate(self.hparams.model_head)
         self.criterion = hydra.utils.instantiate(self.hparams.criterion)
+
+        family = self.hparams.get("model_family", None)
+        self.batch_requirements = (
+            get_model_spec(family).batch_requirements if family else BatchRequirements()
+        )
 
         self.freeze_backbone = freeze_backbone
         self.layerwise_lr_decay = layerwise_lr_decay
@@ -127,6 +157,7 @@ class RegressionTask(pl.LightningModule):
 
     def _shared_step(self, batch: Dict[str, Any], split: str) -> torch.Tensor:
         """Compute the loss and update the metrics for one batch."""
+        require_batch_fields(batch, self.batch_requirements)
         predictions = self(batch["input"], batch["channel_coords"])
         targets = batch["label"].to(predictions.dtype).reshape(predictions.shape)
         batch["label"] = targets
@@ -160,15 +191,15 @@ class RegressionTask(pl.LightningModule):
         """Run one training step."""
         if self.freeze_backbone:
             self.model.eval()
-        return self._shared_step(batch, "train")
+        return self._shared_step(as_signal_batch(batch), "train")
 
     def validation_step(self, batch: Dict[str, Any], batch_idx: int) -> torch.Tensor:
         """Run one validation step."""
-        return self._shared_step(batch, "val")
+        return self._shared_step(as_signal_batch(batch), "val")
 
     def test_step(self, batch: Dict[str, Any], batch_idx: int) -> torch.Tensor:
         """Run one test step."""
-        return self._shared_step(batch, "test")
+        return self._shared_step(as_signal_batch(batch), "test")
 
     def on_train_epoch_end(self) -> None:
         """Log aggregated training metrics."""

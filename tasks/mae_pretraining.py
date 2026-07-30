@@ -1,3 +1,25 @@
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  Glenn Anta Bucagu                                                 *
+#* Author:  BioFoundation Contributors                                        *
+#*                                                                            *
+#* Imported from the S-CEReBrO reference implementation (TimeFM).             *
+#*----------------------------------------------------------------------------*
+
 from typing import Any, Dict, Optional, Tuple
 
 import hydra
@@ -5,6 +27,9 @@ import pytorch_lightning as pl
 import torch
 import torch_optimizer as torch_optim
 
+from biofoundation.core.batch import BatchRequirements, as_signal_batch, require_batch_fields
+from biofoundation.core.checkpoints import SafetensorsCheckpointMixin
+from biofoundation.model_registry import get_model_spec
 from models.modules.patching import patchify
 
 
@@ -26,7 +51,7 @@ def extract_encoder_state_dict(checkpoint: Dict[str, Any]) -> Dict[str, torch.Te
     }
 
 
-class MaskedAutoencoderPretrainingTask(pl.LightningModule):
+class MaskedAutoencoderPretrainingTask(SafetensorsCheckpointMixin, pl.LightningModule):
     """SimMIM-style masked reconstruction pre-training for the CEReBrO encoder.
 
     Waveforms are patched and embedded, a random subset of real (non-padded) tokens
@@ -48,6 +73,11 @@ class MaskedAutoencoderPretrainingTask(pl.LightningModule):
         self.model_head = hydra.utils.instantiate(self.hparams.model_head)
         self.criterion = hydra.utils.instantiate(self.hparams.criterion)
 
+        family = self.hparams.get("model_family", None)
+        self.batch_requirements = (
+            get_model_spec(family).batch_requirements if family else BatchRequirements()
+        )
+
         self.masking_ratio = masking_ratio
         self.patch_size = self.hparams.model.patch_size
         self.num_channels = self.hparams.model.num_channels
@@ -66,6 +96,7 @@ class MaskedAutoencoderPretrainingTask(pl.LightningModule):
 
     def _shared_step(self, batch: Dict[str, Any]) -> torch.Tensor:
         """Run masking, encoding, decoding and loss for one batch."""
+        require_batch_fields(batch, self.batch_requirements)
         x = batch["input"]
         batch_size, channels = x.shape[0], x.shape[1]
 
@@ -91,13 +122,13 @@ class MaskedAutoencoderPretrainingTask(pl.LightningModule):
 
     def training_step(self, batch: Dict[str, Any], batch_idx: int) -> torch.Tensor:
         """Compute and log the training reconstruction loss."""
-        loss = self._shared_step(batch)
+        loss = self._shared_step(as_signal_batch(batch))
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch: Dict[str, Any], batch_idx: int) -> torch.Tensor:
         """Compute and log the validation reconstruction loss."""
-        loss = self._shared_step(batch)
+        loss = self._shared_step(as_signal_batch(batch))
         self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 

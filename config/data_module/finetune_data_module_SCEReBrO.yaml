@@ -1,3 +1,4 @@
+# @package _global_
 #*----------------------------------------------------------------------------*
 #* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
 #* SPDX-License-Identifier: Apache-2.0                                        *
@@ -16,32 +17,41 @@
 #*                                                                            *
 #* Author:  Glenn Anta Bucagu                                                 *
 #* Author:  BioFoundation Contributors                                        *
-#*                                                                            *
-#* Imported from the S-CEReBrO reference implementation (TimeFM).             *
 #*----------------------------------------------------------------------------*
+data_module:
+  _target_: 'data_module.finetuning_data_module.FinetuningDataModule'
+  name: "eeg"
+  cfg:
+    num_workers: ${num_workers}
+    batch_size: ${batch_size}
 
-from typing import Dict
-
-import torch
-from torch import nn
-
-
-class MSELossWrapper(nn.Module):
-    """Mean squared error loss for scalar regression targets."""
-
-    def __init__(self, reduction: str = "mean"):
-        super().__init__()
-        self.loss_fn = nn.MSELoss(reduction=reduction)
-
-    def forward(self, pred: torch.Tensor, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
-        """Compute MSE against ``batch['label']``.
-
-        Args:
-            pred: Predictions broadcastable to the target shape.
-            batch: Must contain ``label`` with the regression targets.
-
-        Returns:
-            Scalar loss.
-        """
-        target = batch["label"]
-        return self.loss_fn(pred.reshape(target.shape).to(target.dtype), target)
+  # Splits are fixed by the preprocessing step, not resampled here. Point dataset_root
+  # at another prepared corpus to fine-tune on it; see docs/model/SCEReBrO.md for the
+  # channel count, window length and class count each one expects.
+  train:
+    _target_: 'datasets.lmdb_dataset.LMDBDataset'
+    path: ${dataset_root}
+    split: train
+    dataset_kind: ${dataset_kind}
+    apply_minmax: True
+    apply_zero_padding: False
+    label_mode: ${label_mode}
+    use_cache: False
+  val:
+    _target_: 'datasets.lmdb_dataset.LMDBDataset'
+    path: ${dataset_root}
+    split: val
+    dataset_kind: ${dataset_kind}
+    apply_minmax: True
+    apply_zero_padding: False
+    label_mode: ${label_mode}
+    use_cache: False
+  test:
+    _target_: 'datasets.lmdb_dataset.LMDBDataset'
+    path: ${dataset_root}
+    split: test
+    dataset_kind: ${dataset_kind}
+    apply_minmax: True
+    apply_zero_padding: False
+    label_mode: ${label_mode}
+    use_cache: False

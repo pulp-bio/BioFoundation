@@ -115,6 +115,25 @@ MODEL_REGISTRY: Mapping[str, ModelSpec] = MappingProxyType(
             ),
             venue="AICAS 2026",
         ),
+        "s-cerebro": ModelSpec(
+            display_name="S-CEReBrO",
+            modalities=("EEG",),
+            architecture="Windowed alternating-attention Transformer",
+            model_target="models.s_cerebro.SCerebroEncoder",
+            pretrain_experiment="SCEReBrO_pretrain",
+            finetune_experiment="SCEReBrO_finetune",
+            huggingface_url="https://huggingface.co/PulpBio/S-CEReBrO",
+            paper_url="https://arxiv.org/abs/2607.03118",
+            batch_requirements=BatchRequirements(channel_coords=True),
+            venue="arXiv preprint",
+            head_targets=(
+                "models.model_heads.patch_reconstruction_head.PatchReconstructionHead",
+                "models.model_heads.mlp_classification_head.MlpClassificationHead",
+                "models.model_heads.mlp_regression_head.MlpRegressionHead",
+                "models.model_heads.sequence_classification_head.SequenceClassificationHead",
+            ),
+            size_variants=("tiny", "small", "base"),
+        ),
     }
 )
 

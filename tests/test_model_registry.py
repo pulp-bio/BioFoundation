@@ -30,7 +30,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ModelRegistryTest(unittest.TestCase):
     def test_registry_contains_every_published_model(self):
-        self.assertEqual(set(MODEL_REGISTRY), {"femba", "luna", "tinymyo", "lumamba", "panluna"})
+        self.assertEqual(
+            set(MODEL_REGISTRY),
+            {"femba", "luna", "tinymyo", "lumamba", "panluna", "s-cerebro"},
+        )
+
+    def test_registry_keys_are_casefolded_display_names(self):
+        for key, spec in MODEL_REGISTRY.items():
+            self.assertEqual(key, spec.display_name.casefold())
 
     def _assert_target_resolves(self, target):
         module_name, class_name = target.rsplit(".", 1)
@@ -68,6 +75,10 @@ class ModelRegistryTest(unittest.TestCase):
         self.assertEqual(
             MODEL_REGISTRY["panluna"].batch_requirements,
             BatchRequirements(channel_locations=True, sensor_type=True),
+        )
+        self.assertEqual(
+            MODEL_REGISTRY["s-cerebro"].batch_requirements,
+            BatchRequirements(channel_coords=True),
         )
 
     def test_huggingface_and_paper_links_are_unique_and_documented(self):

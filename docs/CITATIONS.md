@@ -11,6 +11,7 @@ Please cite the paper corresponding to the model used in your work. Published pr
 | TinyMyo | [arXiv preprint](https://arxiv.org/abs/2512.15729). |
 | LuMamba | Accepted at EUSIPCO 2026; proceedings forthcoming ([preprint](https://arxiv.org/abs/2603.19100)). |
 | PanLUNA | Accepted at IEEE AICAS 2026; proceedings forthcoming ([preprint](https://arxiv.org/abs/2604.04297)). |
+| S-CEReBrO | [arXiv preprint](https://arxiv.org/abs/2607.03118). |
 
 ## FEMBA
 
@@ -82,6 +83,20 @@ Please cite the paper corresponding to the model used in your work. Published pr
   archivePrefix={arXiv},
   primaryClass={cs.AI},
   url={https://arxiv.org/abs/2604.04297}
+}
+```
+
+## S-CEReBrO
+
+```bibtex
+@misc{bucagu2026scerebro,
+  title={{S-CEReBrO}: Windowed Alternating Attention for Compact {EEG} Representation Learning},
+  author={Bucagu, Glenn Anta and Dimofte, Alexandru and Ingolfsson, Thorir Mar and Li, Yawei and Benini, Luca},
+  year={2026},
+  eprint={2607.03118},
+  archivePrefix={arXiv},
+  primaryClass={eess.SP},
+  url={https://arxiv.org/abs/2607.03118}
 }
 ```
 

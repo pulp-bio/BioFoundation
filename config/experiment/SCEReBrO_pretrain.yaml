@@ -22,7 +22,7 @@ tag: SCEReBrO_pretrain
 model_size: tiny
 
 # Names the registry entry whose BatchRequirements the task enforces on every batch.
-model_family: scerebro
+model_family: s-cerebro
 
 gpus: -1
 num_nodes: 1

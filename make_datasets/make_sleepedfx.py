@@ -1,0 +1,65 @@
+"""Preprocess the Sleep-EDFx pre-training corpus into a pooled LMDB."""
+
+import os
+
+import mne
+
+from make_datasets.common import (
+    SAMPLING_FREQ,
+    bipolar_coordinates,
+    build_arg_parser,
+    list_files,
+    slice_windows,
+    write_pretraining_corpus,
+)
+
+SLICE_SECONDS = 30
+WINDOW_SAMPLES = SAMPLING_FREQ * SLICE_SECONDS
+
+EDF_CHANNELS = ["EEG Fpz-Cz", "EEG Pz-Oz"]
+NUM_CHANNELS = len(EDF_CHANNELS)
+CHANNEL_COORDS = bipolar_coordinates([
+    tuple(name.replace("EEG ", "").upper().split("-")) for name in EDF_CHANNELS
+])
+
+
+def process_recording(task):
+    """Filter and slice one polysomnography recording."""
+    root, relative_path = task
+    raw = mne.io.read_raw_edf(os.path.join(root, relative_path), preload=True, verbose=False)
+
+    present = [name for name in EDF_CHANNELS if name in raw.ch_names]
+    if len(present) != NUM_CHANNELS:
+        return []
+    raw.pick(present)
+    raw.reorder_channels(EDF_CHANNELS)
+    raw.filter(l_freq=0.5, h_freq=30, method="fir", picks="eeg", verbose=False)
+    if raw.info["sfreq"] != SAMPLING_FREQ:
+        raw.resample(SAMPLING_FREQ, verbose=False)
+
+    stem = os.path.splitext(os.path.basename(relative_path))[0]
+    return [
+        (
+            f"{stem}-{index}".encode(),
+            {"eeg": window, "channel_coords": CHANNEL_COORDS, "subject_id": stem},
+        )
+        for index, window in enumerate(slice_windows(raw.get_data(), WINDOW_SAMPLES))
+    ]
+
+
+def main():
+    """Slice Sleep-EDFx into 30-second pre-training windows."""
+    args = build_arg_parser("Sleep-EDFx pre-training corpus to LMDB").parse_args()
+    mne.set_log_level("ERROR")
+
+    tasks = [
+        (args.input_dir, name)
+        for name in list_files(args.input_dir, [".edf"])
+    ]
+    write_pretraining_corpus(
+        "SleepEDFx", tasks, process_recording, args.output_dir, args.num_workers, args.dry_run
+    )
+
+
+if __name__ == "__main__":
+    main()

@@ -106,6 +106,53 @@ class RepositoryContractsTest(unittest.TestCase):
         ]
         self.assertLess(call_names.index("require_environment"), call_names.index("run"))
 
+    def test_model_size_labels_match_their_config_filename(self):
+        """A model config that declares model_size must agree with its own filename.
+
+        model_size names the output directory and is interpolated into pre-trained
+        checkpoint paths, so a config claiming a size it is not would silently load the
+        wrong weights. Declaring it in the model group rather than the experiment is
+        what keeps the two in step; this pins that the declaration is honest.
+        """
+        pattern = re.compile(r"^model_size:\s*(\S+)", re.MULTILINE)
+        for config_path in (ROOT / "config" / "model").glob("*.yaml"):
+            match = pattern.search(config_path.read_text(encoding="utf-8"))
+            if match is None:
+                continue
+            expected = config_path.stem.rsplit("_", 1)[-1]
+            self.assertEqual(match.group(1), expected, config_path.name)
+
+    def test_model_size_is_declared_in_exactly_one_place(self):
+        """An experiment must not restate a model_size its model group already declares.
+
+        Families whose model configs carry model_size get it from whichever group is
+        selected, so the label always matches the encoder being built. Families that
+        never interpolate it may omit it entirely. Declaring it in both places is what
+        allows the label and the encoder to drift apart.
+        """
+        declares = re.compile(r"^model_size:\s*(\S+)", re.MULTILINE)
+        selects_model = re.compile(r"^\s*-\s*override\s+/model:\s*(\S+)", re.MULTILINE)
+
+        for experiment in sorted((ROOT / "config" / "experiment").glob("*.yaml")):
+            text = experiment.read_text(encoding="utf-8")
+            selected = selects_model.search(text)
+            if selected is None:
+                continue
+            model_config = ROOT / "config" / "model" / f"{selected.group(1)}.yaml"
+            if not model_config.is_file():
+                continue
+
+            group_declares = declares.search(model_config.read_text(encoding="utf-8")) is not None
+            experiment_declares = declares.search(text) is not None
+            # Not declaring it at all is fine: families that never interpolate
+            # model_size simply do not have the concept.
+            with self.subTest(experiment=experiment.name):
+                self.assertFalse(
+                    group_declares and experiment_declares,
+                    f"{experiment.name}: model_size declared in both the experiment and "
+                    f"{model_config.name}; keep it in the model group only",
+                )
+
     def test_onboarding_docs_do_not_link_to_missing_local_paths(self):
         link_pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
         paths = (

@@ -18,7 +18,9 @@
 #* Author:  BioFoundation Contributors                                        *
 #*----------------------------------------------------------------------------*
 tag: SCEReBrO_pretrain
-model_size: tiny
+
+# model_size is supplied by the selected config/model group, so it always matches
+# the encoder actually being built.
 
 model_family: s-cerebro
 

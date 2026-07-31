@@ -65,6 +65,32 @@ def split_checkpoint_state_dict(checkpoint: Dict[str, Any]) -> Dict[str, Dict[st
     return {"model": dict(checkpoint), "model_head": {}}
 
 
+def freeze_pretraining_only_parameters(encoder: nn.Module) -> list:
+    """Disable gradients for encoder parameters that no fine-tuning forward pass uses.
+
+    The mask and pad tokens exist for masked pre-training. A fine-tuning step never
+    substitutes them, so they receive no gradient. Under DistributedDataParallel with
+    find_unused_parameters=False the reducer waits for a gradient from every parameter
+    it tracks, so leaving them trainable hangs the first training step of a multi-GPU
+    run with no error message. Freezing them removes them from DDP's set entirely,
+    which is cheaper than enabling find_unused_parameters and walking the graph on
+    every step.
+
+    LUNA disables its mask token for classification for the same reason; see
+    models/LUNA.py.
+
+    Returns:
+        Names of the parameters that were frozen.
+    """
+    frozen = []
+    for name in ("mask_token", "pad_token"):
+        parameter = getattr(encoder, name, None)
+        if parameter is not None and parameter.requires_grad:
+            parameter.requires_grad = False
+            frozen.append(name)
+    return frozen
+
+
 class ClassificationTask(SafetensorsCheckpointMixin, pl.LightningModule):
     """Fine-tuning task for EEG classification.
 
@@ -126,6 +152,8 @@ class ClassificationTask(SafetensorsCheckpointMixin, pl.LightningModule):
         self.train_metrics = self._build_metrics()
         self.val_metrics = self._build_metrics()
         self.test_metrics = self._build_metrics()
+
+        freeze_pretraining_only_parameters(self.model)
 
         if self.freeze_backbone:
             self._apply_backbone_freeze()

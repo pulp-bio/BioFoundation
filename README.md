@@ -19,7 +19,7 @@ The training stack is built on PyTorch Lightning and Hydra. Embedded deployment 
 | [TinyMyo](docs/model/TinyMyo.md) | sEMG | Rotary Transformer | [Paper](https://arxiv.org/abs/2512.15729) / [Hugging Face](https://huggingface.co/PulpBio/TinyMyo) |
 | [LuMamba](docs/model/LuMamba.md) | EEG | Query-unified Mamba | [Paper](https://arxiv.org/abs/2603.19100) / [Hugging Face](https://huggingface.co/PulpBio/LuMamba) |
 | [PanLUNA](docs/model/PanLUNA.md) | EEG, ECG, PPG | Multimodal query-unified Transformer | [Paper](https://arxiv.org/abs/2604.04297) / [Hugging Face](https://huggingface.co/PulpBio/PanLUNA) |
-| [S-CEReBrO](docs/model/SCEReBrO.md) | EEG | Windowed alternating-attention Transformer | [Paper](https://arxiv.org/abs/2607.03118) / [Hugging Face](https://huggingface.co/PulpBio/S-CEReBrO) |
+| [S-CEReBrO](docs/model/SCEReBrO.md) | EEG | Windowed alternating-attention Transformer | [Paper](https://arxiv.org/abs/2607.27913) / [Hugging Face](https://huggingface.co/PulpBio/S-CEReBrO) |
 
 The machine-readable [`model_registry.py`](biofoundation/model_registry.py) records the experiment names, papers, Hugging Face repositories, modalities, and batch metadata requirements for these families.
 

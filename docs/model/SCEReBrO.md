@@ -109,7 +109,7 @@ Fine-tune on another prepared dataset by overriding the corpus and its montage:
 ```bash
 python -u run_train.py +experiment=SCEReBrO_finetune \
   dataset_root=$DATA_PATH/finetuning/CHB-MIT \
-  model.num_channels=16 model_head.num_classes=2
+  model.num_channels=16 model_head.num_classes=2 model_head.num_patches=10
 ```
 
 Sleep staging and regression swap the head, task and criterion together:
@@ -118,14 +118,20 @@ Sleep staging and regression swap the head, task and criterion together:
 # ISRUC, one label per 30 s epoch
 python -u run_train.py +experiment=SCEReBrO_finetune \
   dataset_root=$DATA_PATH/finetuning/ISRUC dataset_kind=sequence \
-  model.num_channels=6 /model_head=sequence_classification_head
+  model.num_channels=6 model_head=sequence_classification_head
 
 # SEED-VIG, continuous target
 python -u run_train.py +experiment=SCEReBrO_finetune \
   dataset_root=$DATA_PATH/finetuning/SEED-VIG label_mode=regression \
-  model.num_channels=17 /model_head=mlp_regression_head \
-  /task=finetune_regression_task_SCEReBrO /criterion=mse_criterion
+  model.num_channels=17 model_head=mlp_regression_head \
+  task=finetune_regression_task_SCEReBrO criterion=mse_criterion
 ```
+
+A config group is selected on the command line without a leading slash
+(`model_head=...`); the leading slash form is only used inside a defaults list in a
+config file. Head parameters come from the selected head's own config, so override
+them per dataset with `model_head.num_classes=4 model_head.num_patches=4` rather than
+expecting the experiment to carry classification-specific keys.
 
 A linear-probe style run freezes the encoder blocks while leaving tokenisation and the embeddings trainable:
 

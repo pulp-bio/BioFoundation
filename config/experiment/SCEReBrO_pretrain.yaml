@@ -40,14 +40,15 @@ pretrained_checkpoint_path: null
 pretrained_safetensors_path: null
 
 defaults:
+  # model_head is not part of the global defaults, so it is added here rather than
+  # overridden, leaving the composition of the five bundled families untouched.
+  # Hydra requires additions before overrides in a defaults list.
+  - /model_head: patch_reconstruction_head
   - override /data_module: pretrain_data_module_SCEReBrO
   - override /model: SCEReBrO_tiny        # or SCEReBrO_small, SCEReBrO_base
   - override /task: pretrain_task_SCEReBrO
   - override /criterion: masked_reconstruction_loss
   - override /scheduler: cosine
-  # model_head is not part of the global defaults, so it is added here rather than
-  # overridden. The five bundled families compose exactly as before.
-  - /model_head: patch_reconstruction_head
 
 model:
   num_channels: 64

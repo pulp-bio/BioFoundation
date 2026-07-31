@@ -123,7 +123,7 @@ MODEL_REGISTRY: Mapping[str, ModelSpec] = MappingProxyType(
             pretrain_experiment="SCEReBrO_pretrain",
             finetune_experiment="SCEReBrO_finetune",
             huggingface_url="https://huggingface.co/PulpBio/S-CEReBrO",
-            paper_url="https://arxiv.org/abs/2607.03118",
+            paper_url="https://arxiv.org/abs/2607.27913",
             batch_requirements=BatchRequirements(channel_coords=True),
             venue="arXiv preprint",
             head_targets=(

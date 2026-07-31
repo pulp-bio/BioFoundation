@@ -49,22 +49,28 @@ pretrained_checkpoint_path: null
 pretrained_safetensors_path: null
 
 defaults:
+  # model_head is not part of the global defaults, so it is added here rather than
+  # overridden, leaving the composition of the five bundled families untouched.
+  # Hydra requires additions before overrides in a defaults list.
+  #
+  # For SEED-VIG vigilance regression, change these together on the command line
+  # (no leading slash in CLI overrides):
+  #   model_head=mlp_regression_head task=finetune_regression_task_SCEReBrO \
+  #   criterion=mse_criterion label_mode=regression
+  - /model_head: mlp_classification_head
   - override /data_module: finetune_data_module_SCEReBrO
   - override /model: SCEReBrO_tiny        # or SCEReBrO_small, SCEReBrO_base
   - override /task: finetune_task_SCEReBrO
   - override /criterion: ce_criterion
   - override /scheduler: cosine
-  # For SEED-VIG vigilance regression, override these three together:
-  #   /model_head: mlp_regression_head, /task: finetune_regression_task_SCEReBrO,
-  #   /criterion: mse_criterion, and set label_mode=regression.
-  - /model_head: mlp_classification_head
 
 model:
   num_channels: 22          # TUAB montage
 
-model_head:
-  num_classes: 2
-  num_patches: 10           # 10 s window at one patch per second
+# model_head values are not set here. Each head config in config/model_head/ carries
+# its own defaults, so swapping the head group does not leave classification-only keys
+# such as num_classes behind for a head that does not accept them. Override per
+# dataset on the command line, e.g. model_head.num_classes=4 model_head.num_patches=4.
 
 task:
   freeze_backbone: False    # True gives a linear-probe style run

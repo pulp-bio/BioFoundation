@@ -33,6 +33,18 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Experiments that do not compose today, with the reason. These are recorded rather
+# than skipped silently so the breakage stays visible, and the test fails if one of
+# them starts composing, which forces the entry to be removed rather than left to rot.
+KNOWN_UNCOMPOSABLE_EXPERIMENTS = {
+    "FEMBA_quantized": (
+        "pre-existing: its defaults list requires scheduler/constant_lr, which does "
+        "not exist in config/scheduler/. It also targets "
+        "ARES.tests.test_networks.test_24_femba_full_expland2, misspelling the module "
+        "test_24_femba_full_expand2."
+    ),
+}
+
 
 @unittest.skipIf(compose is None, "hydra-core is not installed")
 class HydraCompositionTest(unittest.TestCase):
@@ -58,6 +70,33 @@ class HydraCompositionTest(unittest.TestCase):
                 resolved = OmegaConf.to_container(config, resolve=True)
                 self.assertIsInstance(resolved, dict)
                 self.assertTrue(resolved["tag"])
+
+    def test_every_experiment_file_composes_or_is_a_known_failure(self):
+        """Compose every experiment, including those no registry entry points at.
+
+        The test above only reaches experiments named by a ModelSpec, which leaves
+        standalone experiment files unchecked. Composition failures that this catches
+        include defaults-list ordering mistakes, which produce a valid-looking YAML
+        file that Hydra rejects only at run time.
+        """
+
+        for path in sorted((ROOT / "config" / "experiment").glob("*.yaml")):
+            name = path.stem
+            with self.subTest(experiment=name):
+                try:
+                    with initialize_config_dir(version_base="1.1", config_dir=str(ROOT / "config")):
+                        config = compose(config_name="defaults", overrides=[f"+experiment={name}"])
+                    OmegaConf.to_container(config, resolve=True)
+                except Exception as error:  # noqa: BLE001 - the failure itself is the assertion
+                    if name in KNOWN_UNCOMPOSABLE_EXPERIMENTS:
+                        self.skipTest(f"{name}: {KNOWN_UNCOMPOSABLE_EXPERIMENTS[name]}")
+                    self.fail(f"{name} failed to compose: {type(error).__name__}: {error}")
+                else:
+                    self.assertNotIn(
+                        name,
+                        KNOWN_UNCOMPOSABLE_EXPERIMENTS,
+                        f"{name} now composes; remove it from KNOWN_UNCOMPOSABLE_EXPERIMENTS",
+                    )
 
 
 if __name__ == "__main__":

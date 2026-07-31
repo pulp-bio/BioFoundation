@@ -124,34 +124,37 @@ python -u run_train.py +experiment=SCEReBrO_finetune \
   pretrained_safetensors_path=/absolute/path/to/SCEReBrO_tiny.safetensors
 ```
 
-Fine-tune on another prepared dataset by overriding the corpus and its montage:
+Fine-tune on another corpus by selecting it. Each file in [`config/dataset`](../../config/dataset/) owns everything that varies per corpus: its path, whether samples are windows or sequences, whether labels are classes or a continuous target, the channel count, and the matching prediction head, task and criterion.
 
 ```bash
-python -u run_train.py +experiment=SCEReBrO_finetune \
-  dataset_root=$DATA_PATH/finetuning/CHB-MIT \
-  model.num_channels=16 model_head.num_classes=2 model_head.num_patches=10
+python -u run_train.py +experiment=SCEReBrO_finetune dataset=chb-mit
+python -u run_train.py +experiment=SCEReBrO_finetune dataset=isruc
+python -u run_train.py +experiment=SCEReBrO_finetune dataset=seed-vig
 ```
 
-Sleep staging and regression swap the head, task and criterion together:
+| `dataset=` | Task | Channels | Window | Classes | Head |
+| --- | --- | --- | --- | --- | --- |
+| `tuab` | binary classification | 22 | 10 s | 2 | `MlpClassificationHead` |
+| `chb-mit` | seizure detection | 16 | 10 s | 2 | `MlpClassificationHead` |
+| `neonate` | seizure detection | 18 | 5 s | 2 | `MlpClassificationHead` |
+| `physionet-mi` | motor imagery | 64 | 4 s | 4 | `MlpClassificationHead` |
+| `shu-mi` | motor imagery | 32 | 4 s | 2 | `MlpClassificationHead` |
+| `stew` | workload | 14 | 4 s | 3 | `MlpClassificationHead` |
+| `mumtaz` | depression | 20 | 5 s | 2 | `MlpClassificationHead` |
+| `mental-arithmetic` | mental arithmetic | 20 | 5 s | 2 | `MlpClassificationHead` |
+| `seed-v` | emotion | 62 | 4 s | 5 | `MlpClassificationHead` |
+| `isruc` | sleep staging | 6 | 30 s x 20 epochs | 5 | `SequenceClassificationHead` |
+| `seed-vig` | vigilance regression | 17 | 8 s | continuous | `MlpRegressionHead` |
+
+Individual values can still be overridden on top of a selection, for a montage that differs from the prepared one:
 
 ```bash
-# ISRUC, one label per 30 s epoch
-python -u run_train.py +experiment=SCEReBrO_finetune \
-  dataset_root=$DATA_PATH/finetuning/ISRUC dataset_kind=sequence \
-  model.num_channels=6 model_head=sequence_classification_head
-
-# SEED-VIG, continuous target
-python -u run_train.py +experiment=SCEReBrO_finetune \
-  dataset_root=$DATA_PATH/finetuning/SEED-VIG label_mode=regression \
-  model.num_channels=17 model_head=mlp_regression_head \
-  task=finetune_regression_task_SCEReBrO criterion=mse_criterion
+python -u run_train.py +experiment=SCEReBrO_finetune dataset=tuab model.num_channels=19
 ```
 
-A config group is selected on the command line without a leading slash
-(`model_head=...`); the leading slash form is only used inside a defaults list in a
-config file. Head parameters come from the selected head's own config, so override
-them per dataset with `model_head.num_classes=4 model_head.num_patches=4` rather than
-expecting the experiment to carry classification-specific keys.
+**Where each setting lives.** The channel count is `model.num_channels`, and it must equal what the dataset yields; the encoder raises rather than reshaping if they disagree. The window length is not configured at all for window classification with the default mean pooling, because the task derives the patch count from the data and the encoder slices its position table to match; the only limit is `max_timesteps / patch_size`, which is 30 s, and exceeding it raises. `model_head.num_patches` is read only by `SequenceClassificationHead` and by `MlpClassificationHead` when `pooling_method` is `flatten`. The task type is not a separate flag: selecting a dataset selects the head, task and criterion together.
+
+**Adding a corpus.** Copy the closest file in `config/dataset/`, set its path, channel count and label details, and leave the head, task and criterion selections alone unless the task type differs. Do not set these values in the experiment: Hydra applies a config's own values after its defaults list, so a key set in both places resolves to the experiment's copy and the dataset file is silently ignored. A contract test enforces this.
 
 A linear-probe style run freezes the encoder blocks while leaving tokenisation and the embeddings trainable:
 

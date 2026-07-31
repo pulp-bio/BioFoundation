@@ -31,14 +31,11 @@ pretrained_root: ${env:CHECKPOINT_DIR}/pretrained/S-CEReBrO
 # Names the registry entry whose BatchRequirements the task enforces on every batch.
 model_family: s-cerebro
 
-# Fine-tuning dataset. Defaults to TUAB; switch corpus with a single override, e.g.
-#   python -u run_train.py +experiment=SCEReBrO_finetune \
-#       dataset_root=${env:DATA_PATH}/finetuning/CHB-MIT model.num_channels=16
-# docs/model/SCEReBrO.md lists the channel count, window length and class count for
-# each prepared dataset.
-dataset_root: ${env:DATA_PATH}/finetuning/TUAB
-dataset_kind: window          # 'window', or 'sequence' for ISRUC sleep staging
-label_mode: classification
+# The corpus is selected as a single config group. Each file in config/dataset/ owns
+# everything that varies per corpus: its path, whether samples are windows or
+# sequences, whether labels are classes or a continuous target, the channel count, and
+# the matching prediction head, task and criterion. Switch corpus with one override:
+#   python -u run_train.py +experiment=SCEReBrO_finetune dataset=isruc
 
 gpus: -1
 num_nodes: 1
@@ -64,28 +61,18 @@ input_normalization:
   normalize: False
 
 defaults:
-  # model_head is not part of the global defaults, so it is added here rather than
-  # overridden, leaving the composition of the five bundled families untouched.
-  # Hydra requires additions before overrides in a defaults list.
+  # The dataset group brings its own model_head, task and criterion, so this experiment
+  # deliberately does not select them. Hydra applies a config's own values after its
+  # defaults list, so anything set here would win over the group and the two could
+  # disagree; leaving them to config/dataset/ makes one file the single owner.
   #
-  # For SEED-VIG vigilance regression, change these together on the command line
-  # (no leading slash in CLI overrides):
-  #   model_head=mlp_regression_head task=finetune_regression_task_SCEReBrO \
-  #   criterion=mse_criterion label_mode=regression
-  - /model_head: mlp_classification_head
+  # model_head is not in the global defaults, so the dataset group adds it rather than
+  # overriding it, which leaves the five bundled families composing exactly as before.
+  # Hydra requires additions before overrides in a defaults list.
+  - /dataset: tuab
   - override /data_module: finetune_data_module_SCEReBrO
   - override /model: SCEReBrO_tiny        # or SCEReBrO_small, SCEReBrO_base
-  - override /task: finetune_task_SCEReBrO
-  - override /criterion: ce_criterion
   - override /scheduler: cosine
-
-model:
-  num_channels: 22          # TUAB montage
-
-# model_head values are not set here. Each head config in config/model_head/ carries
-# its own defaults, so swapping the head group does not leave classification-only keys
-# such as num_classes behind for a head that does not accept them. Override per
-# dataset on the command line, e.g. model_head.num_classes=4 model_head.num_patches=4.
 
 task:
   freeze_backbone: False    # True gives a linear-probe style run

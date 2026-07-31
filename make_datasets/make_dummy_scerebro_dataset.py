@@ -168,7 +168,14 @@ def write_tueg(
 
             # Vary how many channels are real so padding is genuinely exercised.
             active = real_channels if index % 2 == 0 else max(4, real_channels // 2)
-            waveform[:active] = make_eeg(active, num_timesteps, rng)
+            signal = make_eeg(active, num_timesteps, rng)
+            # TUEGDataset returns the stored waveform unchanged, so windows are
+            # min-max normalised offline exactly as make_tueg does. Without this the
+            # TUEG windows would be on a different scale from the LMDB corpora they
+            # are concatenated with.
+            minimum = signal.min(axis=1, keepdims=True)
+            maximum = signal.max(axis=1, keepdims=True)
+            waveform[:active] = ((signal - minimum) / (maximum - minimum + 1e-10) - 0.5) * 2.0
             coords[:active] = make_channel_coords(active, rng)
 
             key = f"tueg_{index:06d}".encode()

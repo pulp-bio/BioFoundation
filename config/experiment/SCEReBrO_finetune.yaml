@@ -48,6 +48,14 @@ find_unused_parameters: False
 pretrained_checkpoint_path: null
 pretrained_safetensors_path: null
 
+# Normalisation for S-CEReBrO is min-max to [-1, 1], applied per channel by
+# LMDBDataset via apply_minmax and written into TUEG offline by make_tueg. The
+# quantile normalisation that config/defaults.yaml configures belongs to the tasks the
+# bundled families use; the S-CEReBrO tasks never read input_normalization. It is
+# disabled here so the resolved config cannot be misread as enabling it.
+input_normalization:
+  normalize: False
+
 defaults:
   # model_head is not part of the global defaults, so it is added here rather than
   # overridden, leaving the composition of the five bundled families untouched.

@@ -129,7 +129,7 @@ def test_token_mask_marks_exactly_the_replaced_tokens():
 
     masked, token_mask = task.mask_tokens(tokens.clone(), attn_mask=None)
 
-    replaced = (masked == task.mask_token.detach()).all(dim=-1)
+    replaced = (masked == task.model.mask_token.detach()).all(dim=-1)
     assert torch.equal(replaced, token_mask)
     torch.testing.assert_close(masked[~token_mask], tokens[~token_mask])
 

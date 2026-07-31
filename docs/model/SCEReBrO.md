@@ -186,4 +186,48 @@ final_test=False`.
 
 ### Pretrained Weights
 
-Checkpoints are published at [PulpBio/S-CEReBrO](https://huggingface.co/PulpBio/S-CEReBrO). Encoder weights load independently of the head, and tensors whose shapes do not match the current model are skipped rather than forced, so an encoder pre-trained at 64 channels can seed a 22-channel fine-tune. The loader prints how many tensors were loaded, skipped, and unexpected, so a silent no-op load is visible in the logs.
+The [PulpBio/S-CEReBrO Hugging Face repository](https://huggingface.co/PulpBio/S-CEReBrO) provides tiny, small and base checkpoints matching the model configs in [`config/model`](../../config/model/). The weights are licensed under CC BY-ND 4.0.
+
+```python
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id="PulpBio/S-CEReBrO",
+    local_dir="checkpoints/S-CEReBrO",
+)
+```
+
+Select the matching model size and pass the local path. This is the same
+`pretrained_safetensors_path` mechanism every other family uses; `run_train.py` reads
+it before training starts and routes it to the task's safetensors loader.
+
+```bash
+python -u run_train.py +experiment=SCEReBrO_finetune model=SCEReBrO_tiny \
+  pretrained_safetensors_path=/absolute/path/to/checkpoints/S-CEReBrO/SCEReBrO_tiny.safetensors
+```
+
+The size flag and the checkpoint must agree: loading a `base` checkpoint into a `tiny`
+encoder is not an error, because shape-mismatched tensors are skipped rather than
+forced. Check the `[load:model] loaded=... shape_mismatch=... unexpected=...` line the
+loader prints; on a correct pairing `shape_mismatch` and `unexpected` are both zero and
+`loaded` equals `total_target`.
+
+A Lightning `.ckpt` produced by a local pre-training run is passed with
+`pretrained_checkpoint_path` instead:
+
+```bash
+python -u run_train.py +experiment=SCEReBrO_finetune \
+  pretrained_checkpoint_path=$CHECKPOINT_DIR/checkpoints/SCEReBrO_pretrain/<run>/last.ckpt
+```
+
+Convert one to safetensors for distribution with the repository's own tool:
+
+```bash
+python util/ckpt_to_safetensor.py \
+  --ckpt_path $CHECKPOINT_DIR/checkpoints/SCEReBrO_pretrain/<run>/last.ckpt \
+  --safetensor_path SCEReBrO_tiny.safetensors
+```
+
+Only the encoder needs to transfer. Head weights are loaded from a checkpoint only when
+`include_head=True` is requested, so a reconstruction head from pre-training never
+overwrites a freshly initialised classification head.

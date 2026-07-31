@@ -82,8 +82,12 @@ class MaskedAutoencoderPretrainingTask(SafetensorsCheckpointMixin, pl.LightningM
         self.patch_size = self.hparams.model.patch_size
         self.num_channels = self.hparams.model.num_channels
         self.embed_dim = self.hparams.model.embed_dim
-        self.mask_token = self.model.mask_token
-        self.pad_token = self.model.pad_token
+        # The mask and pad tokens are referenced through self.model rather than
+        # aliased onto this module. Assigning an nn.Parameter to a second module
+        # registers it a second time, so the checkpoint would carry both
+        # "model.mask_token" and "mask_token" backed by one storage. safetensors
+        # rejects shared storage, which would make the encoder undistributable in the
+        # format the Hugging Face releases use.
         self.strict_loading = False
 
     def on_after_batch_transfer(self, batch: Dict[str, Any], dataloader_idx: int) -> Dict[str, Any]:
@@ -157,7 +161,7 @@ class MaskedAutoencoderPretrainingTask(SafetensorsCheckpointMixin, pl.LightningM
             padded = channel_indices >= num_real_channels.unsqueeze(1)
             padded = padded.repeat_interleave(patches, dim=1)
             attn_mask = (~padded).int()
-            tokens = torch.where(padded.unsqueeze(-1), self.pad_token.to(tokens.dtype), tokens)
+            tokens = torch.where(padded.unsqueeze(-1), self.model.pad_token.to(tokens.dtype), tokens)
 
         tokens, token_mask = self.mask_tokens(tokens, attn_mask)
         return tokens.reshape(batch_size, channels, patches, embed_dim), token_mask, attn_mask
@@ -194,7 +198,7 @@ class MaskedAutoencoderPretrainingTask(SafetensorsCheckpointMixin, pl.LightningM
         num_keep = (valid_length * (1 - self.masking_ratio)).to(torch.long)
         token_mask = (rank >= num_keep.unsqueeze(1)) & (rank < valid_length.unsqueeze(1))
 
-        masked = torch.where(token_mask.unsqueeze(-1), self.mask_token.to(tokens.dtype), tokens)
+        masked = torch.where(token_mask.unsqueeze(-1), self.model.mask_token.to(tokens.dtype), tokens)
         return masked, token_mask
 
     def configure_optimizers(self) -> Dict[str, Any]:

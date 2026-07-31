@@ -21,6 +21,26 @@ The encoder requires `channel_coords` of shape `(batch, channels, 2, 3)`: the 3D
 
 Keeping both electrodes separate is what lets a bipolar derivation and a scalp-electrode-plus-reference channel stay distinguishable, and it is why the channel embedding is a function of geometry rather than of a channel index. Montages with different channel counts and orderings share the same parameters.
 
+### Channel Counts
+
+The published encoders are pre-trained at 64 channels, and one checkpoint fine-tunes onto any montage from 1 to `max_channels` without modification. Nothing in the state dict depends on the channel count:
+
+- the temporal position table is sized by `max_timesteps // patch_size` and sliced to the patches present, and is shared across channels;
+- the channel embedding is an MLP over 3D electrode coordinates, so it has no per-channel parameters and generalises to montages it never saw;
+- the attention blocks take the channel count only as a reshape argument.
+
+Set `model.num_channels` to the montage you are fine-tuning on and leave `max_channels` at the value the checkpoint was pre-trained with:
+
+```bash
+python -u run_train.py +experiment=SCEReBrO_finetune model.num_channels=6
+```
+
+The encoder validates this rather than guessing: passing input whose channel count differs from `model.num_channels` raises rather than silently reshaping. Set it to match the dataset.
+
+Two channel counts coexist and mean different things. `model.num_channels` is how many channels the encoder is built for and must equal what the dataset yields. `model.max_channels` is the capacity the positional table was sized at, and must stay at the pre-training value or the checkpoint will not match.
+
+For pre-training, corpora with fewer channels are zero-padded up to `max_channels` by `LMDBDataset`, and the padded channels are replaced by a learned pad token, excluded from masking, and masked out of attention. Fine-tuning does not pad: the encoder is simply built at the montage's own size.
+
 ### Preprocessing
 
 Datasets are prepared into LMDB with [`make_datasets`](../../make_datasets/). Each entry is a pickled dictionary with `eeg`, `channel_coords`, and optionally `label` and `subject_id`. Electrode coordinates come from [`make_datasets/electrode_positions.py`](../../make_datasets/electrode_positions.py), which follows the BESA electrode and surface location tables and assigns fixed coordinates to reference electrodes that have no scalp position of their own.
@@ -188,23 +208,41 @@ final_test=False`.
 
 The [PulpBio/S-CEReBrO Hugging Face repository](https://huggingface.co/PulpBio/S-CEReBrO) provides tiny, small and base checkpoints matching the model configs in [`config/model`](../../config/model/). The weights are licensed under CC BY-ND 4.0.
 
+`snapshot_download` writes to whatever `local_dir` you give it, resolved relative to the
+current working directory when it is not absolute. The fine-tuning experiment expects
+the release under `$CHECKPOINT_DIR/pretrained/S-CEReBrO`, which is the default value of
+`pretrained_root`, so download it there:
+
 ```python
+import os
 from huggingface_hub import snapshot_download
 
 snapshot_download(
     repo_id="PulpBio/S-CEReBrO",
-    local_dir="checkpoints/S-CEReBrO",
+    local_dir=os.path.join(os.environ["CHECKPOINT_DIR"], "pretrained", "S-CEReBrO"),
 )
 ```
 
-Select the matching model size and pass the local path. This is the same
-`pretrained_safetensors_path` mechanism every other family uses; `run_train.py` reads
-it before training starts and routes it to the task's safetensors loader.
+The checkpoint path can then be written as an interpolation instead of an absolute
+path. `model_size` is declared by the selected `config/model` group, so it always
+matches the encoder being built and the two cannot drift:
 
 ```bash
 python -u run_train.py +experiment=SCEReBrO_finetune model=SCEReBrO_tiny \
-  pretrained_safetensors_path=/absolute/path/to/checkpoints/S-CEReBrO/SCEReBrO_tiny.safetensors
+  'pretrained_safetensors_path=${pretrained_root}/SCEReBrO_${model_size}.safetensors'
 ```
+
+Switching size needs one change, and the checkpoint follows:
+
+```bash
+python -u run_train.py +experiment=SCEReBrO_finetune model=SCEReBrO_base \
+  'pretrained_safetensors_path=${pretrained_root}/SCEReBrO_${model_size}.safetensors'
+```
+
+Single-quote the override so the shell does not expand `${...}` before Hydra sees it.
+`pretrained_root` defaults to `${env:CHECKPOINT_DIR}/pretrained/S-CEReBrO` and can be
+pointed elsewhere with `pretrained_root=/some/other/dir`. An absolute
+`pretrained_safetensors_path` still works exactly as it does for the other families.
 
 The size flag and the checkpoint must agree: loading a `base` checkpoint into a `tiny`
 encoder is not an error, because shape-mismatched tensors are skipped rather than

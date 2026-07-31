@@ -19,7 +19,9 @@
 #* Author:  BioFoundation Contributors                                        *
 #*----------------------------------------------------------------------------*
 tag: SCEReBrO_pretrain
-model_size: tiny
+
+# model_size is supplied by the selected config/model group, so it always matches
+# the encoder actually being built.
 
 # Names the registry entry whose BatchRequirements the task enforces on every batch.
 model_family: s-cerebro

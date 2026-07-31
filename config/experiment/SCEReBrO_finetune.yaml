@@ -19,7 +19,14 @@
 #* Author:  BioFoundation Contributors                                        *
 #*----------------------------------------------------------------------------*
 tag: SCEReBrO_finetune
-model_size: tiny
+
+# model_size is supplied by the selected config/model group, so it always matches
+# the encoder actually being built.
+
+# Where snapshot_download placed the Hugging Face release. Kept separate from the
+# checkpoint path so a run can point at one file without restating the root:
+#   pretrained_safetensors_path='${pretrained_root}/SCEReBrO_${model_size}.safetensors'
+pretrained_root: ${env:CHECKPOINT_DIR}/pretrained/S-CEReBrO
 
 # Names the registry entry whose BatchRequirements the task enforces on every batch.
 model_family: s-cerebro

@@ -15,7 +15,6 @@
 #* See the License for the specific language governing permissions and        *
 #* limitations under the License.                                             *
 #*                                                                            *
-#* Author:  Glenn Anta Bucagu                                                 *
 #* Author:  BioFoundation Contributors                                        *
 #*----------------------------------------------------------------------------*
 tag: SCEReBrO_finetune
@@ -47,7 +46,7 @@ training: True
 resume: False
 final_validate: True
 final_test: True
-find_unused_parameters: False
+find_unused_parameters: True
 
 pretrained_checkpoint_path: null
 pretrained_safetensors_path: null

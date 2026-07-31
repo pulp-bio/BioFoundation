@@ -141,6 +141,49 @@ python -u run_train.py +experiment=SCEReBrO_finetune task.freeze_backbone=True
 
 Fine-tuning uses layer-wise learning-rate decay: blocks closer to the input receive `lr * decay ** (depth - 1 - block_idx)`. Biases, normalisation weights, and the embedding tables are excluded from weight decay, and the head forms its own parameter group.
 
+### Smoke Test With Synthetic Data
+
+To check the pipeline end to end without prepared data, generate synthetic corpora in
+the exact on-disk formats the readers expect. The signals are band-limited noise and
+the labels are random, so this verifies that a run works, not that it learns anything.
+
+```bash
+export DATA_PATH=/absolute/path/to/dummy-data
+export CHECKPOINT_DIR=/absolute/path/to/experiments
+
+python -m make_datasets.make_dummy_scerebro_dataset --output $DATA_PATH \
+  --pretrain-samples 24 --finetune-samples 32
+```
+
+Add `--datasets pretrain tuab isruc seed-vig` to also generate the sequence and
+regression corpora.
+
+Pre-train, then fine-tune from the resulting checkpoint:
+
+```bash
+python -u run_train.py +experiment=SCEReBrO_pretrain \
+  trainer.accelerator=cpu trainer.devices=1 trainer.strategy=auto \
+  trainer.max_epochs=1 trainer.accumulate_grad_batches=1 \
+  trainer.check_val_every_n_epoch=1 scheduler.warmup_epochs=0 \
+  batch_size=4 num_workers=0 final_validate=False
+
+python -u run_train.py +experiment=SCEReBrO_finetune \
+  pretrained_checkpoint_path=$CHECKPOINT_DIR/checkpoints/SCEReBrO_pretrain/<run>/last.ckpt \
+  trainer.accelerator=cpu trainer.devices=1 trainer.strategy=auto \
+  trainer.max_epochs=2 scheduler.warmup_epochs=0 \
+  batch_size=4 num_workers=0
+```
+
+Drop the `trainer.*` and `num_workers` overrides on a GPU machine; they exist only to
+make the run finish quickly on CPU.
+
+On PyTorch 2.6 and newer, reloading a checkpoint for the final validation and test
+passes fails with `UnpicklingError: Weights only load failed`, because `torch.load`
+now defaults to `weights_only=True` and every task stores its Hydra configuration in
+the checkpoint. This affects `run_train.py` for all model families, not only this one.
+Either export `TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1` or pass `final_validate=False
+final_test=False`.
+
 ### Pretrained Weights
 
 Checkpoints are published at [PulpBio/S-CEReBrO](https://huggingface.co/PulpBio/S-CEReBrO). Encoder weights load independently of the head, and tensors whose shapes do not match the current model are skipped rather than forced, so an encoder pre-trained at 64 channels can seed a 22-channel fine-tune. The loader prints how many tensors were loaded, skipped, and unexpected, so a silent no-op load is visible in the logs.

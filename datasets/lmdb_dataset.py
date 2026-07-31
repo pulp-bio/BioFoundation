@@ -132,13 +132,26 @@ class LMDBDataset(torch.utils.data.Dataset):
         self.cache_size = cache_size
 
         self.lmdb_path, self.meta_path = resolve_lmdb_path(path, split)
-        self.env = lmdb.open(
-            self.lmdb_path, readonly=True, lock=False, readahead=True, max_readers=64, map_async=True
-        )
+        self.env = None
         self.keys = self._load_keys()
         self.cache: "OrderedDict[int, Dict[str, Any]]" = OrderedDict()
 
         print(f"[LMDBDataset] {os.path.basename(self.lmdb_path)}: {len(self.keys)} entries")
+
+    def _ensure_env(self) -> None:
+        """Open the LMDB environment lazily, on first read.
+
+        Construction deliberately leaves ``env`` unset. LMDB refuses to open the same
+        path twice in one process, and ``run_train.py`` re-instantiates the data module
+        before the rank-zero test pass while the original may still be referenced. It
+        also avoids handing an open handle to forked dataloader workers. This mirrors
+        how :class:`~datasets.tueg_dataset.TUEGDataset` manages its environment.
+        """
+        if self.env is None:
+            self.env = lmdb.open(
+                self.lmdb_path, readonly=True, lock=False, readahead=True,
+                max_readers=64, map_async=True,
+            )
 
     def _load_keys(self) -> List[bytes]:
         """Read the sample keys from the index file, or scan the LMDB if there is none."""
@@ -150,8 +163,14 @@ class LMDBDataset(torch.utils.data.Dataset):
                 raise ValueError(f"Index file {self.meta_path} contains no keys")
             return [key.encode() if isinstance(key, str) else key for key in keys]
 
-        with self.env.begin(buffers=True) as txn:
-            return [bytes(key) for key in txn.cursor().iternext(keys=True, values=False)]
+        # No index file: scan once through a temporary environment, then close it so
+        # construction still leaves no handle open.
+        env = lmdb.open(self.lmdb_path, readonly=True, lock=False, readahead=True)
+        try:
+            with env.begin(buffers=True) as txn:
+                return [bytes(key) for key in txn.cursor().iternext(keys=True, values=False)]
+        finally:
+            env.close()
 
     def __len__(self) -> int:
         """Number of samples."""
@@ -201,6 +220,7 @@ class LMDBDataset(torch.utils.data.Dataset):
             self.cache.move_to_end(idx)
             return self.cache[idx]
 
+        self._ensure_env()
         key = self.keys[idx]
         with self.env.begin() as txn:
             raw = txn.get(key)

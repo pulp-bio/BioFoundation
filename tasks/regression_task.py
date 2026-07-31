@@ -32,7 +32,10 @@ from biofoundation.model_registry import get_model_spec
 from torchmetrics import Metric
 from torchmetrics.regression import MeanSquaredError, PearsonCorrCoef, R2Score
 
-from tasks.classification_task import split_checkpoint_state_dict
+from tasks.classification_task import (
+    freeze_pretraining_only_parameters,
+    split_checkpoint_state_dict,
+)
 
 
 class NormalizedRootMeanSquaredError(Metric):
@@ -115,6 +118,8 @@ class RegressionTask(SafetensorsCheckpointMixin, pl.LightningModule):
         self.train_metrics = self._build_metrics()
         self.val_metrics = self._build_metrics()
         self.test_metrics = self._build_metrics()
+
+        freeze_pretraining_only_parameters(self.model)
 
         if self.freeze_backbone:
             self._apply_backbone_freeze()

@@ -173,3 +173,33 @@ def test_classification_head_pooling_modes_agree_on_output_shape():
             num_channels=channels, num_patches=patches,
         )
         assert head(encoded).shape == (2, classes)
+
+
+def test_finetuning_leaves_no_trainable_parameter_without_a_gradient():
+    """Every trainable parameter must receive a gradient from a fine-tuning step.
+
+    DistributedDataParallel with find_unused_parameters=False waits for a gradient from
+    each parameter it tracks. A trainable parameter the forward pass never touches
+    therefore hangs the first training step of a multi-GPU run, with no error and no
+    output. The mask and pad tokens are pre-training-only and are frozen for exactly
+    this reason; this test fails if any other parameter joins them.
+    """
+    import torch
+
+    from models.model_heads.mlp_classification_head import MlpClassificationHead
+    from tasks.classification_task import freeze_pretraining_only_parameters
+
+    encoder = build_encoder(num_channels=4, embed_dim=40, depth=2, num_heads=4)
+    freeze_pretraining_only_parameters(encoder)
+    head = MlpClassificationHead(embed_dim=40, num_classes=2, num_channels=4, num_patches=2)
+
+    tokens = encoder(torch.randn(2, 4, 2, 200), channel_positions=torch.randn(2, 4, 2, 3))
+    torch.nn.functional.cross_entropy(head(tokens), torch.tensor([0, 1])).backward()
+
+    missing = [
+        name
+        for module in (encoder, head)
+        for name, parameter in module.named_parameters()
+        if parameter.requires_grad and parameter.grad is None
+    ]
+    assert missing == [], f"trainable parameters with no gradient: {missing}"

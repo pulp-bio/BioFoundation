@@ -14,7 +14,6 @@
 #* See the License for the specific language governing permissions and        *
 #* limitations under the License.                                             *
 #*                                                                            *
-#* Author:  Glenn Anta Bucagu                                                 *
 #* Author:  BioFoundation Contributors                                        *
 #*                                                                            *
 #* Imported from the S-CEReBrO reference implementation (TimeFM).             *

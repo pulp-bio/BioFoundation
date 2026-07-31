@@ -125,7 +125,7 @@ MODEL_REGISTRY: Mapping[str, ModelSpec] = MappingProxyType(
             huggingface_url="https://huggingface.co/PulpBio/S-CEReBrO",
             paper_url="https://arxiv.org/abs/2607.27913",
             batch_requirements=BatchRequirements(channel_coords=True),
-            venue="arXiv preprint",
+            venue="MICCAI 2026",
             head_targets=(
                 "models.model_heads.patch_reconstruction_head.PatchReconstructionHead",
                 "models.model_heads.mlp_classification_head.MlpClassificationHead",

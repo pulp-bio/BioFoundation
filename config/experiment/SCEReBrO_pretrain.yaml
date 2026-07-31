@@ -15,13 +15,11 @@
 #* See the License for the specific language governing permissions and        *
 #* limitations under the License.                                             *
 #*                                                                            *
-#* Author:  Glenn Anta Bucagu                                                 *
 #* Author:  BioFoundation Contributors                                        *
 #*----------------------------------------------------------------------------*
 tag: SCEReBrO_pretrain
 model_size: tiny
 
-# Names the registry entry whose BatchRequirements the task enforces on every batch.
 model_family: s-cerebro
 
 gpus: -1
@@ -92,7 +90,7 @@ trainer:
   num_nodes: ${num_nodes}
   devices: ${gpus}
   strategy: ddp
-  max_epochs: 50
+  max_epochs: 100
   check_val_every_n_epoch: 5
   accumulate_grad_batches: 8
 
@@ -104,6 +102,6 @@ optimizer:
 
 scheduler:
   trainer: ${trainer}
-  warmup_epochs: 3
+  warmup_epochs: 5
   min_lr: 2.5e-7
   warmup_lr_init: 2.5e-7

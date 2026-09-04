@@ -64,15 +64,16 @@ def train(cfg: DictConfig):
 
     loggers = [tb_logger]
 
-    # Weights & Biases
+    # Weights & Biases (optional: only configured for some experiments)
+    wandb_cfg = cfg.get("wandb", None)
     wandb_logger = None
-    if cfg.wandb:
+    if wandb_cfg:
         wandb_logger = WandbLogger(
-            entity=cfg.wandb.entity,
-            project=cfg.wandb.project,
-            save_dir=cfg.wandb.save_dir,
-            name=cfg.wandb.run_name if cfg.wandb.run_name else version,
-            offline=cfg.wandb.offline,
+            entity=wandb_cfg.entity,
+            project=wandb_cfg.project,
+            save_dir=wandb_cfg.save_dir,
+            name=wandb_cfg.run_name if wandb_cfg.run_name else version,
+            offline=wandb_cfg.offline,
         )
         loggers.append(wandb_logger)
 

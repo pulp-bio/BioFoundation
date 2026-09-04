@@ -1,0 +1,56 @@
+# @package _global_
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  BioFoundation Contributors                                        *
+#*----------------------------------------------------------------------------*
+# Declared here rather than in the experiment so that selecting this group with
+# model=SCEReBrO_small also updates model_size, which names the output directory
+# and the pre-trained checkpoint file. The two cannot drift apart.
+model_size: small
+
+model:
+  _target_: models.s_cerebro.SCerebroEncoder
+
+  # Tokenisation. patch_size is fixed at 200 by TemporalConvTokenizer, which is one
+  # second at the 200 Hz sampling rate every S-CEReBrO dataset is resampled to.
+  patch_size: 200
+  num_channels: 64        # channels in the input; override per fine-tuning dataset
+  embed_dim: 200
+  depth: 12
+  num_heads: 10
+  mlp_ratio: 4.0
+
+  # windowed-alternating is the published method. alternating and full are the
+  # ablation baselines from the paper.
+  attention_type: windowed-alternating
+
+  drop_path: 0.1
+  attn_drop: 0.1
+  proj_drop: 0.1
+
+  # Capacity of the positional tables. An encoder pre-trained at this capacity can be
+  # fine-tuned on fewer channels and shorter recordings without being rebuilt.
+  max_channels: 64
+  max_timesteps: 6000
+
+  window_size_spatial: 7
+  window_size_temporal: 5
+  dilation_cycle_spatial: [1, 2, 4]
+  dilation_cycle_temporal: [1, 2, 4]
+  shift_cycle_spatial: [-1, 1, -2, 2]
+  shift_cycle_temporal: [-1, 1, -2, 2]
+  use_axial_mode: False

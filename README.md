@@ -6,7 +6,7 @@ Authors: Thorir Mar Ingolfsson, Anna Tegon, Berkay Döner, Xiaying Wang, Matteo 
 
 > **TL;DR:** Choose a model from the table below, install the training dependencies, set `DATA_PATH` and `CHECKPOINT_DIR`, then run `python -u run_train.py +experiment=<MODEL>_pretrain` or the matching fine-tuning experiment. Each model page links its Hugging Face weights and exact checkpoint command. ARES is separate and only needed for embedded deployment.
 
-BioFoundation is a research and onboarding codebase for foundation models across EEG, sEMG, ECG, and PPG. It collects the model implementations, Hydra experiments, preprocessing tools, and pretrained releases behind five model families.
+BioFoundation is a research and onboarding codebase for foundation models across EEG, sEMG, ECG, and PPG. It collects the model implementations, Hydra experiments, preprocessing tools, and pretrained releases behind six model families.
 
 The training stack is built on PyTorch Lightning and Hydra. Embedded deployment through ARES is maintained as a separate toolchain inside the repository.
 
@@ -19,6 +19,7 @@ The training stack is built on PyTorch Lightning and Hydra. Embedded deployment 
 | [TinyMyo](docs/model/TinyMyo.md) | sEMG | Rotary Transformer | [Paper](https://arxiv.org/abs/2512.15729) / [Hugging Face](https://huggingface.co/PulpBio/TinyMyo) |
 | [LuMamba](docs/model/LuMamba.md) | EEG | Query-unified Mamba | [Paper](https://arxiv.org/abs/2603.19100) / [Hugging Face](https://huggingface.co/PulpBio/LuMamba) |
 | [PanLUNA](docs/model/PanLUNA.md) | EEG, ECG, PPG | Multimodal query-unified Transformer | [Paper](https://arxiv.org/abs/2604.04297) / [Hugging Face](https://huggingface.co/PulpBio/PanLUNA) |
+| [S-CEReBrO](docs/model/SCEReBrO.md) | EEG | Windowed alternating-attention Transformer | [Paper](https://arxiv.org/abs/2607.27913) / [Hugging Face](https://huggingface.co/PulpBio/S-CEReBrO) |
 
 The machine-readable [`model_registry.py`](biofoundation/model_registry.py) records the experiment names, papers, Hugging Face repositories, modalities, and batch metadata requirements for these families.
 
@@ -74,6 +75,7 @@ Choose another `+experiment` from the model registry. Before a long run, review 
 | [`datasets`](datasets/) | Dataset readers and sample contracts. |
 | [`data_module`](data_module/) | Lightning data modules and loader composition. |
 | [`config`](config/) | Hydra defaults, modules, and reproducible experiments. |
+| [`docs/adr`](docs/adr/) | Architecture decision records for shared contracts. |
 | [`make_datasets`](make_datasets/) | Raw-data preprocessing and HDF5 conversion. |
 | [`criterion`](criterion/) | Training objectives. |
 | [`tests`](tests/) | Fast repository and refactoring contracts. |

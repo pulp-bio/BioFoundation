@@ -21,6 +21,7 @@ Architecture and usage notes are available for every published model family:
 - [TinyMyo](./model/TinyMyo.md): compact foundation model for sEMG.
 - [LuMamba](./model/LuMamba.md): query-unified Mamba for EEG.
 - [PanLUNA](./model/PanLUNA.md): sensor-aware modeling across EEG, ECG, and PPG.
+- [S-CEReBrO](./model/SCEReBrO.md): windowed alternating attention for EEG, with a separate prediction head.
 
 Each model also has a pretrained release linked from the root model zoo. The canonical machine-readable index is [`biofoundation/model_registry.py`](../biofoundation/model_registry.py).
 
@@ -39,6 +40,7 @@ The training guide covers environment variables, Hydra experiment selection, the
 ### 5. Project References
 
 - [`CONTRIBUTING.md`](../CONTRIBUTING.md) defines extension and pull request expectations.
+- [`docs/adr`](./adr/) records architecture decisions affecting the shared contracts.
 - [`CITATIONS.md`](./CITATIONS.md) contains BibTeX for all five model families.
 - [`config/README.md`](../config/README.md) explains Hydra composition and overrides.
 - [`make_datasets/README.md`](../make_datasets/README.md) documents preprocessing and HDF5 conversion.

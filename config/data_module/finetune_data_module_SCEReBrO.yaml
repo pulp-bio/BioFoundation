@@ -1,0 +1,56 @@
+# @package _global_
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  BioFoundation Contributors                                        *
+#*----------------------------------------------------------------------------*
+data_module:
+  _target_: 'data_module.finetuning_data_module.FinetuningDataModule'
+  name: "eeg"
+  cfg:
+    num_workers: ${num_workers}
+    batch_size: ${batch_size}
+
+  # Splits are fixed by the preprocessing step, not resampled here. Point dataset_root
+  # at another prepared corpus to fine-tune on it; see docs/model/SCEReBrO.md for the
+  # channel count, window length and class count each one expects.
+  train:
+    _target_: 'datasets.lmdb_dataset.LMDBDataset'
+    path: ${dataset_root}
+    split: train
+    dataset_kind: ${dataset_kind}
+    apply_minmax: True
+    apply_zero_padding: False
+    label_mode: ${label_mode}
+    use_cache: False
+  val:
+    _target_: 'datasets.lmdb_dataset.LMDBDataset'
+    path: ${dataset_root}
+    split: val
+    dataset_kind: ${dataset_kind}
+    apply_minmax: True
+    apply_zero_padding: False
+    label_mode: ${label_mode}
+    use_cache: False
+  test:
+    _target_: 'datasets.lmdb_dataset.LMDBDataset'
+    path: ${dataset_root}
+    split: test
+    dataset_kind: ${dataset_kind}
+    apply_minmax: True
+    apply_zero_padding: False
+    label_mode: ${label_mode}
+    use_cache: False

@@ -1,31 +1,38 @@
-# **TinyMyo: A Tiny Foundation Model for EMG Signals**
+## TinyMyo
 
 **TinyMyo** is a lightweight **3.6M-parameter** Transformer-based foundation model (FM) for **surface EMG (sEMG)**. It is designed for **broad generalization** across datasets, sensor configurations, domains, and tasks, while remaining efficient enough for **ultra-low-power edge deployment** on microcontrollers.
 
-TinyMyo is the **first EMG foundation model** demonstrated on a microcontroller (GAP9), achieving an inference time of **0.785 s**, energy of **44.91 mJ**and power envelope of **57.18 mW**.
+TinyMyo is designed for deployment on ultra-low-power microcontrollers such as GAP9.
 
 ---
 
-## **1. Default Input Assumptions**
-
-Unless otherwise specified, TinyMyo uses:
+### Default Input Assumptions
 
 * **Channels**: 16
 * **Sampling Rate**: 2000 Hz
 * **Segment Length**: 1000 samples (0.5 s)
 * **Windowing**: 50% overlap during pretraining
-* **Preprocessing**:
 
-  * 4th-order **20–450 Hz bandpass**
-  * **Notch filter** at 50 Hz
-  * Per-channel min–max normalization (pretraining)
-  * Per-channel z-score normalization (downstream)
+### Preprocessing
+
+The standard preprocessing pipeline is:
+
+* 4th-order **20–450 Hz bandpass**
+* **Notch filter** at 50 Hz
+* Per-channel min–max normalization in the pretraining dataset
+* Downstream inputs are used as stored by default; setting
+  `input_normalization.normalize=true` applies per-channel min–max
+  normalization in the EMG fine-tuning task
 
 Datasets with fewer than 16 channels are *zero-padded* only during pretraining.
+The model supports at most 16 runtime channels. When fewer channels are supplied,
+the corresponding prefix of the 16 learned channel-slot embeddings is used.
+The default model expects exactly 1000 temporal samples; inputs with a different
+length must use a model configuration with a matching `img_size`.
 
 ---
 
-## **2. Pretraining Overview**
+### Architecture Overview
 
 TinyMyo is pretrained using **masked reconstruction** across three heterogeneous large-scale EMG datasets:
 
@@ -35,7 +42,7 @@ TinyMyo is pretrained using **masked reconstruction** across three heterogeneous
 | Ninapro DB7 | 22       | 2000 Hz | 12       | 30.9 GB |
 | EMG2Pose    | 192      | 2000 Hz | 16       | 431 GB  |
 
-### **Tokenization: Channel-Independent Patches**
+#### Tokenization: Channel-Independent Patches
 
 Unlike 2D (channel-mixing) tokenizers in EEG FMs, TinyMyo uses **strictly per-channel patching**:
 
@@ -45,9 +52,26 @@ Unlike 2D (channel-mixing) tokenizers in EEG FMs, TinyMyo uses **strictly per-ch
 * Sequence length: **800 tokens** (16 x 50)
 * Positional encoding: **RoPE** (Rotary Position Embeddings)
 
+Tokens are ordered channel-major: all temporal patches from channel 0 are followed
+by all patches from channel 1, and so on. RoPE positions reset for each channel,
+so the first patch of two different channels has the same temporal position. This
+prevents the flattened token order from being interpreted as a physical temporal
+gap between channels.
+
 This preserves electrode-specific information while letting attention learn cross-channel relationships.
 
-### **Transformer Encoder**
+The learned `channel_embed` is a channel-slot embedding. It identifies the
+channel index used by the input tensor; it is not an electrode-coordinate or
+sensor-placement embedding. Consequently, heterogeneous sensor layouts remain
+structurally supported, but channel ordering should be documented by each data
+pipeline and is not automatically aligned by physical electrode location.
+
+During pretraining, zero-padded channels are identified by `pad_mask_ch`. Any
+masking assigned to those channels is cleared, and padded tokens are excluded
+from the set of attention keys. The reconstruction target still follows the
+pretraining task's configured masked and unmasked loss weighting.
+
+#### Transformer Encoder
 
 * **8 layers**
 * **3 heads**
@@ -55,12 +79,12 @@ This preserves electrode-specific information while letting attention learn cros
 * Pre-LayerNorm
 * Dropout & drop-path: **0.1**
 
-### **Lightweight Decoder**
+#### Lightweight Decoder
 
 A simple **linear layer** (≈ **3.9k params**) reconstructs masked patches.
 Following SimMIM philosophy, the minimal decoder forces the encoder to learn structured latent representations.
 
-### **Masking Objective**
+### Self-Supervised Learning Objective
 
 * **50% random masking** with a learnable [MASK] token
 * Reconstruction loss = **Smooth L1**
@@ -69,25 +93,42 @@ $$
   \mathcal{L} = \mathcal{L}*{\text{masked}} + 0.1 \cdot \mathcal{L}*{\text{visible}}
 $$
 
-### **Training Setup**
+### Training Setup
 
-* Optimizer: **AdamW** (β=(0.9, 0.98), wd=0.01)
-* LR: **1x10⁻⁴**, cosine decay
-* Batch size: **512** with gradient accumulation
-* Epochs: **50** with 10-epoch warm-up
-* Hardware: **4x NVIDIA GH200 GPUs**
+The repository configurations define the following defaults:
+
+* **Pretraining**: AdamW, learning rate `5e-4`, weight decay `1e-2`, 30 epochs,
+  3 warm-up epochs, batch size 512, and `bf16-mixed` precision.
+* **Fine-tuning**: AdamW, learning rate `5e-4`, weight decay `1e-2`, 50 epochs,
+  5 warm-up epochs, gradient clipping at `1.0`, and layer-wise LR decay `0.9`.
+* Both schedules use cosine decay.
+
+#### EMG Fine-tuning Contract
+
+The default EMG fine-tuning experiment is single-label six-class gesture
+classification. It uses `classification_type: "mcc"`, cross-entropy with
+configurable `label_smoothing` (default `0.1`), and reports epoch-level
+accuracy, precision, recall, F1, AUROC, and average precision for training,
+validation, and test data.
+
+For a pretrained checkpoint, the fine-tuning model must match its encoder
+shape, especially `n_layer`, `embed_dim`, `n_head`, `patch_size`, and
+`in_chans`. For example, a four-block Tinyssimo checkpoint must be fine-tuned
+with `model.n_layer=4`; otherwise any additional blocks are randomly
+initialized when loading with `strict=False`.
 
 ---
 
-## **3. Architecture Summary**
+### Model Variants and Pipeline
 
-### **Model Variant**
+#### Model Variants
 
 | Variant     | Params   | (Layers, dim) |
 | ----------- | -------- | ------------- |
 | **TinyMyo** | **3.6M** | (8, 192)      |
+| **TinyssimoMyo** | **1.9M** | (4, 192)      |
 
-### **Pipeline**
+#### Pipeline
 
 **Pretraining**
 
@@ -101,21 +142,48 @@ EMG -> Channel-indep. patching -> Masking -> Transformer Encoder -> Linear Decod
 EMG -> Patching -> Transformer Encoder -> Channel fusion -> Temporal pooling -> Task-specific head
 ```
 
+#### Implementation Contract
+
+For the default configuration:
+
+| Quantity | Value |
+| --- | ---: |
+| Input shape | `(B, 16, 1000)` |
+| Temporal patch size | `20` samples |
+| Patches per channel | `50` |
+| Encoder tokens | `800` |
+| Token dimension | `192` |
+| Attention heads | `3` |
+| Per-head dimension | `64` |
+
+`embed_dim` must be divisible by `n_head`, and the per-head dimension must be
+even because RoPE rotates pairs of features. `img_size` must be divisible by
+`patch_size`, and runtime input length must match `img_size`.
+
+The task heads return `(B, num_classes)` for classification and
+`(B, img_size, num_classes)` for regression. In pretraining, the linear decoder
+returns one reconstructed patch of length `patch_size` per encoder token.
+
 ---
 
-## **4. Downstream Tasks**
+### Downstream Tasks
 
 TinyMyo supports three major categories:
 
 ---
 
-### **4.1 Hand Gesture Classification**
+#### Hand Gesture Classification
 
-Evaluated on:
+Released classification checkpoints use the following label conventions:
 
-* **Ninapro DB5** (52 classes, 10 subjects)
-* **EPN-612** (5 classes, 612 subjects)
-* **UCI EMG** (6 classes, 36 subjects)
+| Dataset | Input channels | Classes | Label convention |
+| --- | ---: | ---: | --- |
+| NinaPro DB5 | 16 | 53 | 52 gestures + resting |
+| EPN-612 | 8 | 6 | 5 gestures + hand relaxed |
+| UCI EMG | 8 | 6 | Dataset-specific six-class gesture labels |
+
+Additional downstream evaluations include:
+
 * **Generic Neuromotor Interface** (Meta wristband; 9 gestures)
   * Repository: [MatteoFasulo/generic-neuromotor-interface](https://github.com/MatteoFasulo/generic-neuromotor-interface)
 
@@ -126,32 +194,21 @@ Evaluated on:
 * EMG filtering: **20–90 Hz** bandpass + 50 Hz notch
 * Windows:
 
-  * **200 ms** (best for DB5)
-  * **1000 ms** (best for EPN & UCI)
+  * **1 sec** (best for DB5)
+  * **5 sec** (best for EPN & UCI)
 * Per-channel z-scoring
 * Linear classification head
 
   * Input: **C x 192**
   * Params: typically **<40k**
 
-**Performance (Fine-tuned)**
-
-| Dataset                  | Metric   | Result            |
-| ------------------------ | -------- | ----------------- |
-| **Ninapro DB5 (200 ms)** | Accuracy | **89.41 ± 0.16%** |
-| **EPN-612 (1000 ms)**    | Accuracy | **96.74 ± 0.09%** |
-| **UCI EMG (1000 ms)**    | Accuracy | **97.56 ± 0.32%** |
-| **Neuromotor Interface** | CLER     | **0.153 ± 0.006** |
-
-TinyMyo achieves **state-of-the-art** on DB5, EPN-612, and UCI.
-
 ---
 
-### **4.2 Hand Kinematic Regression**
+#### Hand Kinematic Regression
 
-Dataset: **Ninapro DB8**
+Dataset: **Ninapro DB8** (2000 Hz)
 Task: Regress **5 joint angles (DoA)**
-Preprocessing: z-score only; windows of **200 ms** or **1000 ms**
+Preprocessing: z-score only; windows of **100 ms** or **500 ms**
 
 **Regression head (788k params)**
 
@@ -160,22 +217,16 @@ Preprocessing: z-score only; windows of **200 ms** or **1000 ms**
 * Global average pooling
 * Linear projection to 5 outputs
 
-**Performance (Fine-tuned)**
-
-* **MAE = 8.77 ± 0.12°** (1000 ms window)
-
-Although previous works achieve lower MAE (≈6.89°), those models are **subject-specific**, whereas TinyMyo trains **one model across all subjects**, a significantly harder problem.
-
 ---
 
-### **4.3 Speech Production & Speech Recognition**
+#### Speech Production and Speech Recognition
 
 Dataset: **Gaddy Silent Speech**
 (8 channels, 1000 Hz, face/neck EMG)
 Repository: [MatteoFasulo/silent_speech](https://github.com/MatteoFasulo/silent_speech)
 >Note: Additional details on Silent Speech dataset and instructions on how to run experiments can be found in the linked repository.
 
-#### **Speech Production (EMG -> MFCC -> HiFi-GAN -> Audio)**
+##### Speech Production (EMG -> MFCC -> HiFi-GAN -> Audio)
 
 Pipeline:
 
@@ -184,28 +235,16 @@ Pipeline:
 3. Linear projection to **26-dim MFCC**
 4. HiFi-GAN vocoder (pretrained)
 
-**WER (Fine-tuned):**
-
-* **33.54 ± 1.12%**
-
-Comparable to SoA (≈32%) with **>90% fewer parameters** in the transduction model.
-
-#### **Speech Recognition (EMG -> Text)**
+##### Speech Recognition (EMG -> Text)
 
 * Same encoder + residual front-end
 * Linear projection to 37 characters
 * **CTC loss**
 * 4-gram LM + beam search
 
-**WER:**
-
-* **33.95 ± 0.97%**
-
-Although not surpassing the multimodal MONA-LISA (12.2%), TinyMyo is vastly smaller and EMG-only.
-
 ---
 
-## **5. Edge Deployment**
+### Edge Deployment
 
 TinyMyo is deployed on **GAP9 (RISC-V, ultra-low power)**.
 
@@ -219,40 +258,27 @@ Key elements:
 * Integer softmax, integer LayerNorm, integer GELU
 * Static liveness-based memory arena
 
-**Runtime (NinaPro EPN612 pipeline):**
-
-* **0.785 s inference time**
-* **44.91 mJ energy**
-* **57.18 mW average power**
-
-This is the **first demonstration of an EMG FM on a microcontroller**.
+For current deployment measurements and benchmark results, refer to the
+[PulpBio/TinyMyo model card](https://huggingface.co/PulpBio/TinyMyo) and the
+[TinyMyo paper](https://arxiv.org/abs/2512.15729).
 
 ---
 
-## **6. Results Summary**
+### Pretrained Weights
 
-### **Pretraining**
+The [PulpBio/TinyMyo Hugging Face repository](https://huggingface.co/PulpBio/TinyMyo)
+provides the pretrained model card and downloadable checkpoints.
 
-* Smooth L1 reconstruction with high fidelity
-* Total FLOPs: ~4.0G
+| Checkpoint | Task | `in_chans` | `num_classes` | File |
+| --- | --- | ---: | ---: | --- |
+| TinyMyo pretraining | Reconstruction | 16 | 0 | `pretraining/TinyMyo/TinyMyo.safetensors` |
+| DB5 | Classification | 16 | 53 | `DB5/DB5_finetune_5sec.safetensors` |
+| EPN-612 | Classification | 8 | 6 | `EPN612/EPN_finetune_5sec.safetensors` |
+| UCI EMG | Classification | 8 | 6 | `UCI_EMG/UCI_finetune_5sec.safetensors` |
+| DB8 | Regression | 16 | 5 | `DB8/DB8_finetune_500ms.safetensors` |
 
-### **Downstream SoA Highlights**
-
-* **DB5:** 89.41%
-* **EPN-612:** 96.74%
-* **UCI EMG:** 97.56%
-* **Neuromotor:** 0.153 CLER
-* **DB8 Regression:** MAE 8.77°
-* **Speech Production:** WER 33.54%
-* **Speech Recognition:** WER 33.95%
-
-Overall TinyMyo matches or exceeds state-of-the-art while being on par with or smaller than prior EMG foundation models.
-
----
-
-## Pretrained Weights
-
-The [PulpBio/TinyMyo Hugging Face repository](https://huggingface.co/PulpBio/TinyMyo) provides task checkpoints for DB5, UCI EMG, and EPN612, along with dataset download and preprocessing scripts.
+The model configuration must match the checkpoint, especially `in_chans`,
+`num_classes`, and `task`.
 
 ```python
 from huggingface_hub import snapshot_download
@@ -263,12 +289,18 @@ snapshot_download(
 )
 ```
 
-Run fine-tuning from the repository root:
+The built-in `TinyMyo_finetune` experiment currently points to the UCI EMG
+HDF5 files. From a BioFoundation checkout, run the UCI checkpoint with:
 
 ```bash
 python -u run_train.py +experiment=TinyMyo_finetune \
-  pretrained_safetensors_path=/absolute/path/to/checkpoints/TinyMyo/UCI_EMG/base.safetensors
+  model.in_chans=8 \
+  pretrained_safetensors_path=/absolute/path/to/TinyMyo/UCI_EMG/UCI_finetune_5sec.safetensors
 ```
+
+DB5, EPN-612, and DB8 require dataset-specific data-module configuration in
+addition to the matching checkpoint. There is currently no ready-made
+dataset-specific experiment for those three releases in this repository.
 
 Related experiments remain in dedicated repositories:
 

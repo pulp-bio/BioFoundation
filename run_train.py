@@ -32,8 +32,10 @@ import torch.distributed as dist
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning.strategies import DDPStrategy
+import wandb
+
 
 from biofoundation.core.environment import require_environment
 from util.train_utils import find_last_checkpoint_path
@@ -50,7 +52,7 @@ torch.set_float32_matmul_precision("high")
 def train(cfg: DictConfig):
     seed_everything(cfg.seed)
 
-    date_format = "%d_%m_%H-%M"
+    date_format = "%d_%m_%H-%M-%S.%f"
 
     # Create your version_name
     version = f"{cfg.tag}_{datetime.now().strftime(date_format)}"
@@ -59,6 +61,21 @@ def train(cfg: DictConfig):
     tb_logger = TensorBoardLogger(
         save_dir=osp.expanduser(cfg.io.base_output_path), name=cfg.tag, version=version
     )
+
+    loggers = [tb_logger]
+
+    # Weights & Biases (optional: only configured for some experiments)
+    wandb_cfg = cfg.get("wandb", None)
+    wandb_logger = None
+    if wandb_cfg:
+        wandb_logger = WandbLogger(
+            entity=wandb_cfg.entity,
+            project=wandb_cfg.project,
+            save_dir=wandb_cfg.save_dir,
+            name=wandb_cfg.run_name if wandb_cfg.run_name else version,
+            offline=wandb_cfg.offline,
+        )
+        loggers.append(wandb_logger)
 
     # DataLoader
     print("===> Loading datasets")
@@ -109,14 +126,14 @@ def train(cfg: DictConfig):
         del cfg.trainer.strategy
         trainer = Trainer(
             **cfg.trainer,
-            logger=tb_logger,
+            logger=loggers,
             callbacks=callbacks,
             strategy=DDPStrategy(find_unused_parameters=cfg.find_unused_parameters),
         )
     else:
         trainer = Trainer(
             **cfg.trainer,
-            logger=tb_logger,
+            logger=loggers,
             callbacks=callbacks,
         )
 
@@ -154,11 +171,15 @@ def train(cfg: DictConfig):
                 datamodule=data_module,
                 results=results,
                 accelerator=cfg.trainer.accelerator,
-                last_ckpt=best_ckpt,
+                ckpt=best_ckpt,
+                wandb_logger=wandb_logger,
             )
 
     if not cfg.training:
         trainer.save_checkpoint(f"{checkpoint_dirpath}/last.ckpt")
+
+    if wandb.run is not None:
+        wandb.finish()
 
 
 @pl.utilities.rank_zero_only
@@ -167,14 +188,16 @@ def _run_test(
     datamodule: pl.LightningDataModule,
     results,
     accelerator,
-    last_ckpt,
+    ckpt,
+    wandb_logger=None,
 ):
     trainer = pl.Trainer(
         accelerator=accelerator,
         devices=1,
+        logger=wandb_logger if wandb_logger else [],
     )
     print("===> Start testing")
-    test_results = trainer.test(module, datamodule=datamodule, ckpt_path=last_ckpt)
+    test_results = trainer.test(module, datamodule=datamodule, ckpt_path=ckpt)
     results["test_metrics"] = test_results
     return results, trainer
 

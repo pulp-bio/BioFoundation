@@ -17,120 +17,115 @@
 # * Author:  Matteo Fasulo                                                     *
 # *----------------------------------------------------------------------------*
 import os
-import threading
-from collections import deque
-from typing import Optional
+from bisect import bisect_right
 
 import h5py
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-# thread-local storage for per-worker file handle
-_thread_local = threading.local()
-
-
-def _get_h5_handle(path):
-    h5f = getattr(_thread_local, "h5f", None)
-    if h5f is None or h5f.filename != path:
-        h5f = h5py.File(path, "r")
-        _thread_local.h5f = h5f
-    return h5f
-
 
 class EMGPretrainDataset(Dataset):
-    """
-    A PyTorch Dataset class for loading EMG (electromyography) data from HDF5 files for pretraining purposes.
-    This dataset discovers all .h5 files in the specified directory, builds an index of samples across all files,
-    and provides access to individual samples. It supports optional caching to improve performance, channel padding,
-    and squeezing of the data tensor.
-    Args:
-        data_dir (str): Path to the directory containing .h5 files.
-        squeeze (bool, optional): Whether to squeeze the data tensor. Defaults to False.
-        cache_size (int, optional): Size of the cache. Defaults to 1500.
-        use_cache (bool, optional): Enable caching. Defaults to True.
-        pad_up_to_max_chans (int | None, optional): Number of channels to pad to. Defaults to None.
-        max_samples (int | None, optional): Limit the total number of samples. Defaults to None.
-    Raises:
-        RuntimeError: If no .h5 files are found in the data directory.
-    Note:
-        The .h5 files are expected to have a 'data' dataset with shape (N, C, T), where N is the number of samples,
-        C is the number of channels, and T is the number of time points.
-        Caching uses a simple LRU mechanism with a deque to track access order.
-        The __del__ method ensures that any open HDF5 file handles are closed upon deletion.
+    """Lazy HDF5 Dataset for large-scale EMG pretraining.
+
+    Only HDF5 metadata is read during initialization. Each DataLoader worker
+    opens its own persistent HDF5 handle on first access, avoiding full-dataset
+    RAM preloading while allowing the VAST filesystem to serve reads directly.
+
+    Attributes:
+        hdf5_file_path (str): Path to the single HDF5 source file.
+        pad_up_to_max_chans (Optional[int]): If set, zero-pads channels to this count.
+        total_len (int): Total number of samples across all HDF5 groups.
+        group_keys (list[str]): HDF5 groups containing signal samples.
     """
 
     def __init__(
         self,
-        data_dir: str,
-        squeeze: bool = False,
-        cache_size: int = 1500,
-        use_cache: bool = True,
-        pad_up_to_max_chans: Optional[int] = None,
-        max_samples: Optional[int] = None,
+        hdf5_file: str,
+        pad_up_to_max_chans: int | None = None,
     ):
+        """Initializes the shared memory dataset and loads data if needed.
+
+        Args:
+            hdf5_file (str): Path to the HDF5 file.
+            pad_up_to_max_chans (Optional[int]): Target channel count for padding.
+        """
         super().__init__()
-        self.squeeze = squeeze
-        self.cache_size = cache_size
-        self.use_cache = use_cache
         self.pad_up_to_max_chans = pad_up_to_max_chans
 
-        # discover all .h5 files
-        self.file_paths = sorted(os.path.join(data_dir, fn) for fn in os.listdir(data_dir) if fn.endswith(".h5"))
-        if not self.file_paths:
-            raise RuntimeError(f"No .h5 files in {data_dir!r}")
+        self.hdf5_file_path = hdf5_file
+        if not os.path.exists(self.hdf5_file_path) or not self.hdf5_file_path.endswith(".h5"):
+            raise ValueError(f"Expected hdf5_file to be a path to a single HDF5 file, but got {self.hdf5_file_path}")
 
-        # build index of (file_path, sample_idx)
-        self.index_map = []
-        for fp in self.file_paths:
-            with h5py.File(fp, "r") as h5f:
-                n = h5f["data"].shape[0]
-            for i in range(n):
-                self.index_map.append((fp, i))
-        if max_samples is not None:
-            self.index_map = self.index_map[:max_samples]
+        self._h5_file = None
+        self._h5_pid = None
 
-        # Cache to store recently accessed samples
-        if use_cache:
-            self.cache = {}
-            self.cache_queue = deque(maxlen=self.cache_size)
+        # Read only metadata. Keep group offsets for O(log n) index lookup.
+        with h5py.File(self.hdf5_file_path, "r") as hf:
+            group_keys = sorted(hf.keys())
+            if not group_keys:
+                raise ValueError(f"HDF5 file {self.hdf5_file_path} contains no data groups.")
 
-    def __len__(self):
-        return len(self.index_map)
+            self.group_keys = group_keys
+            self.group_offsets = [0]
+            total_samples = 0
+            for key in group_keys:
+                if "X" not in hf[key]:
+                    raise ValueError(f"Group {key} in {self.hdf5_file_path} has no X dataset.")
+                num_in_group = hf[key]["X"].shape[0]
+                total_samples += num_in_group
+                self.group_offsets.append(total_samples)
 
-    def __getitem__(self, index):
-        if self.use_cache and index in self.cache:
-            cached_data = self.cache[index]
-            X = cached_data
-        else:
-            fp, local_idx = self.index_map[index]
-            h5f = _get_h5_handle(fp)
-            np_x = h5f["data"][local_idx]  # shape (C, T)
-            X = torch.from_numpy(np_x).float()
+        self.total_len = total_samples
 
-            if self.use_cache:
-                # If cache is full, remove oldest item from dict AND queue
-                if len(self.cache) >= self.cache_size:
-                    oldest_index = self.cache_queue.popleft()
-                    del self.cache[oldest_index]
+    def _get_h5_file(self):
+        """Return a handle owned by the current worker process."""
+        pid = os.getpid()
+        if self._h5_file is None or self._h5_pid != pid:
+            if self._h5_file is not None:
+                self._h5_file.close()
+            self._h5_file = h5py.File(self.hdf5_file_path, "r")
+            self._h5_pid = pid
+        return self._h5_file
 
-                self.cache[index] = X
-                self.cache_queue.append(index)
+    def __getstate__(self):
+        """Prevent an open HDF5 handle from being serialized to workers."""
+        state = self.__dict__.copy()
+        state["_h5_file"] = None
+        state["_h5_pid"] = None
+        return state
 
-        # squeeze if requested
-        if self.squeeze:
-            X = X.unsqueeze(0)
+    def __len__(self) -> int:
+        """Returns the total number of samples."""
+        return self.total_len
 
-        # pad channels if requested
+    def __getitem__(self, idx: int) -> torch.Tensor:
+        """Retrieves a single sample as a float32 tensor.
+
+        Args:
+            idx (int): Global index across all groups.
+
+        Returns:
+            torch.Tensor: Padded EMG tensor of shape (C, T).
+        """
+        if idx < 0 or idx >= self.total_len:
+            raise IndexError(f"Index {idx} out of range for dataset of size {self.total_len}")
+
+        group_idx = bisect_right(self.group_offsets, idx) - 1
+        local_idx = idx - self.group_offsets[group_idx]
+        h5_file = self._get_h5_file()
+        X_np = h5_file[self.group_keys[group_idx]]["X"][local_idx]
+        X = torch.from_numpy(np.asarray(X_np)).float().contiguous()
+
         if self.pad_up_to_max_chans is not None:
             C = X.shape[0]
             to_pad = self.pad_up_to_max_chans - C
-            if to_pad > 0:
-                X = F.pad(X, (0, 0, 0, to_pad))  # (channels, time) -> pad channels
-
+            if to_pad > 0: X = F.pad(X.T, (0, to_pad)).T
         return X
 
+
     def __del__(self):
-        h5f = getattr(_thread_local, "h5f", None)
-        if h5f is not None:
-            h5f.close()
+        if hasattr(self, "_h5_file") and self._h5_file is not None:
+            try: self._h5_file.close()
+            except Exception: pass

@@ -21,16 +21,16 @@ tag: EMG_pretrain
 
 gpus: -1
 num_nodes: 1
-num_workers: 8
-batch_size: 128
-max_epochs: 50
+num_workers: 4
+batch_size: 512
+max_epochs: 30
 
 final_validate: True
 final_test: False
 
 pretrained_checkpoint_path: null
 io:
-  base_output_path: ${env:DATA_PATH}
+  base_output_path: ${env:LOG_DIR}
   checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
   version: 0
 
@@ -46,25 +46,23 @@ masking:
   masking_ratio: 0.50
   unmasked_loss_coeff: 0.1
 
-input_normalization:
-  normalize: True
+model:
+  n_layer: 8
+  drop_path: 0.0 # Stochastic depth disabled for pretraining
+  num_classes: 0 # No classification head for pretraining
+  task: pretraining
 
-scheduler:
-  trainer: ${trainer}
-  min_lr: 1e-6
-  warmup_lr_init: 1e-6
-  warmup_epochs: 10
-  total_training_opt_steps: ${max_epochs}
-  t_in_epochs: True
+criterion:
+  loss_type: 'smooth_l1'
 
 trainer:
   accelerator: gpu
   num_nodes: ${num_nodes}
   devices: ${gpus}
   strategy: auto
+  precision: "bf16-mixed"
   max_epochs: ${max_epochs}
-  gradient_clip_val: 3
-  accumulate_grad_batches: 8
+  gradient_clip_val: 1
 
 model_checkpoint:
   save_last: True
@@ -73,7 +71,21 @@ model_checkpoint:
   save_top_k: 1
 
 optimizer:
-  optim: 'AdamW'
-  lr: 1e-4
+  lr: 5e-4
   betas: [0.9, 0.98]
-  weight_decay: 0.01
+  weight_decay: 1e-2
+
+scheduler:
+  trainer: ${trainer}
+  min_lr: 1e-6
+  warmup_lr_init: 1e-6
+  warmup_epochs: 3
+  total_training_opt_steps: ${max_epochs}
+  t_in_epochs: True
+
+wandb:
+  entity: "TinyMyo"
+  project: "TinyMyo"
+  save_dir: ${env:LOG_DIR}
+  run_name: "TinyMyo-Pretraining"
+  offline: True

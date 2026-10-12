@@ -157,12 +157,16 @@ ELECTRODE_ANGLES = {
 
 def get_electrode_3d_positions(theta, phi, radius=1):
     """
-    Converts spherical coordinates (theta, phi) to Cartesian coordinates (x, y, z).
-    We use radius = 1 to have to normalize each coordinate in the range [0, 1]
+    Converts BESA spherical angles to Cartesian coordinates (x, y, z).
+
+    BESA's theta ("azimuth") is the angle from Cz, positive over the right hemisphere
+    and negative over the left, and its phi ("latitude") is the angle from T8 on the
+    right or T7 on the left. x then points to the right ear, y to the nose and z to the
+    vertex; with radius 1 each coordinate lies in [-1, 1].
 
     Args:
-        theta (float): Azimuthal angle in degrees.
-        phi (float): Polar angle in degrees.
+        theta (float): Angle from Cz in degrees, signed by hemisphere.
+        phi (float): Angle from T7 or T8 in degrees.
         radius (float): Radius of the sphere.
 
     Returns:
@@ -171,14 +175,8 @@ def get_electrode_3d_positions(theta, phi, radius=1):
     theta_rad = np.radians(theta)
     phi_rad = np.radians(phi)
 
-    # Not BESA's conversion. BESA's theta ("azimuth") is the angle from Cz and its phi
-    # ("latitude") is measured from T7/T8, giving x = sin(theta)cos(phi),
-    # y = sin(theta)sin(phi), z = cos(theta). This treats theta as a rotation about the
-    # vertical and phi as elevation, as the reference that produced the released checkpoint
-    # does, so Cz lands on the equator and Fz, FCz, AFz and Fpz coincide. The checkpoint's
-    # channel embeddings were learned on these values; correcting them means pre-training.
-    x = radius * np.cos(phi_rad) * np.cos(theta_rad)
-    y = radius * np.cos(phi_rad) * np.sin(theta_rad)
-    z = radius * np.sin(phi_rad)
+    x = radius * np.sin(theta_rad) * np.cos(phi_rad)
+    y = radius * np.sin(theta_rad) * np.sin(phi_rad)
+    z = radius * np.cos(theta_rad)
 
     return x, y, z

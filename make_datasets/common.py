@@ -21,9 +21,12 @@
 
 import argparse
 import json
+import multiprocessing
 import os
 import pickle
-from collections import Counter
+from collections import Counter, deque
+from concurrent.futures import FIRST_COMPLETED, Future, ProcessPoolExecutor, wait
+from concurrent.futures.process import BrokenProcessPool
 from typing import Any, Callable, Dict, Iterable, List, Sequence, Tuple
 
 import lmdb
@@ -228,51 +231,95 @@ class PackedLMDBWriter:
     measurable overhead. Each value is a waveform followed by its channel
     coordinates, both float32, so readers can slice the blob without unpickling.
 
+    The key list is written when the writer closes or aborts, by listing the LMDB
+    itself, so it names exactly the committed records however the run ended, in
+    sorted order, which keeps the dataset order independent of worker timing. Until
+    then it is empty. LMDB keeps an open write transaction's records in memory, about
+    1.5 MB each here, which is why commits are more frequent than for the other corpora.
+
     Args:
         lmdb_path: Path of the LMDB to create.
         keys_path: Path of the newline-separated key list to write.
         map_size: Maximum size of the LMDB in bytes.
         dry_run: Collect statistics without writing anything.
+        commit_interval: Records per write transaction.
     """
 
-    def __init__(self, lmdb_path: str, keys_path: str, map_size: int = DEFAULT_MAP_SIZE, dry_run: bool = False):
+    def __init__(
+        self,
+        lmdb_path: str,
+        keys_path: str,
+        map_size: int = DEFAULT_MAP_SIZE,
+        dry_run: bool = False,
+        commit_interval: int = 1000,
+    ):
         self.lmdb_path = lmdb_path
         self.keys_path = keys_path
         self.dry_run = dry_run
-        self.keys: List[str] = []
-        self.written = 0
+        self.commit_interval = commit_interval
+        self.count = 0
+        self.committed = 0
+        self.uncommitted = 0
         self.env = None
         self.txn = None
         if not dry_run:
             os.makedirs(os.path.dirname(lmdb_path) or ".", exist_ok=True)
             self.env = lmdb.open(lmdb_path, map_size=map_size)
             self.txn = self.env.begin(write=True)
+            open(keys_path, "w").close()
 
     def put(self, key: str, waveform: np.ndarray, channel_coords: np.ndarray) -> None:
         """Record one window as a packed byte blob."""
-        self.keys.append(key)
+        self.count += 1
         if self.dry_run:
             return
         payload = waveform.astype(np.float32).tobytes() + channel_coords.astype(np.float32).tobytes()
         self.txn.put(key.encode("ascii"), payload)
-        self.written += 1
-        if self.written % COMMIT_INTERVAL == 0:
+        self.uncommitted += 1
+        if self.uncommitted >= self.commit_interval:
             self.txn.commit()
+            self.committed += self.uncommitted
+            self.uncommitted = 0
             self.txn = self.env.begin(write=True)
 
+    def _write_key_list(self) -> None:
+        """List every stored key, in sorted order, replacing the key list in one step."""
+        temporary = f"{self.keys_path}.tmp"
+        listed = 0
+        with self.env.begin() as txn, open(temporary, "w") as handle:
+            for key in txn.cursor().iternext(keys=True, values=False):
+                handle.write(bytes(key).decode("ascii") + "\n")
+                listed += 1
+        os.replace(temporary, self.keys_path)
+        self.committed = listed
+
     def close(self) -> None:
-        """Commit the LMDB and write the key list."""
+        """Commit the last transaction, write the key list and close the LMDB."""
         if self.dry_run:
             return
         self.txn.commit()
-        self.env.close()
-        with open(self.keys_path, "w") as handle:
-            handle.write("\n".join(self.keys) + "\n")
+        try:
+            self._write_key_list()
+        finally:
+            self.env.close()
+
+    def abort(self) -> None:
+        """Discard the open transaction, list what was committed and close the LMDB."""
+        if self.dry_run:
+            return
+        try:
+            self.txn.abort()
+        except lmdb.Error:
+            pass  # A failed commit has already ended the transaction.
+        try:
+            self._write_key_list()
+        finally:
+            self.env.close()
 
     def summarise(self, name: str) -> None:
         """Print the number of windows written."""
         verb = "computed" if self.dry_run else "written"
-        print(f"\n{name}: {len(self.keys)} windows {verb} to {self.lmdb_path}")
+        print(f"\n{name}: {self.count} windows {verb} to {self.lmdb_path}")
 
 
 def build_arg_parser(description: str) -> argparse.ArgumentParser:
@@ -303,6 +350,114 @@ def run_jobs(
     with Pool(num_workers) as pool:
         for result in tqdm(pool.imap_unordered(worker, tasks), total=len(tasks), desc=description):
             yield result
+
+
+def run_jobs_isolated(
+    worker: Callable[[Any], Any],
+    tasks: Sequence[Any],
+    num_workers: int,
+    description: str,
+    on_failure: Callable[[Any, str], Any],
+) -> Iterable[Any]:
+    """Map ``worker`` over ``tasks`` in worker processes, yielding each result as it completes.
+
+    For runs of many hours over files that cannot all be trusted, where run_jobs falls
+    short twice. A task that raises, or whose worker process dies, for instance at the
+    hands of the out-of-memory killer, yields ``on_failure(task, reason)`` and the run
+    goes on; multiprocessing.Pool would instead wait forever for the dead worker's task.
+    And at most two tasks per worker are in flight, so a consumer slower than the
+    workers holds them back, where Pool would keep every finished result in memory.
+    Workers start as fresh interpreters, so they inherit neither threads nor open LMDBs;
+    the calling script therefore needs the usual ``if __name__ == "__main__"`` guard.
+    """
+    workers = max(1, num_workers)
+    queue = deque(tasks)
+    with tqdm(total=len(queue), desc=description) as progress:
+        while queue:
+            suspects = yield from _run_until_broken(worker, queue, workers, progress, on_failure)
+            # Rerun alone, so that a task which kills its process again can only kill its own.
+            for task in suspects:
+                yield _run_alone(worker, task, on_failure)
+                progress.update()
+
+
+def _worker_context():
+    """Multiprocessing context for run_jobs_isolated."""
+    return multiprocessing.get_context("spawn")
+
+
+def _run_until_broken(worker, queue, workers, progress, on_failure):
+    """Feed tasks from ``queue`` to one pool until the queue is empty or a worker dies.
+
+    Yields each outcome. A dead worker breaks the whole pool and fails every task in
+    flight. The pool starts tasks in submission order, so the tasks that were running
+    are the earliest of the failed ones: the first ``workers + 1`` are returned as
+    suspects, and the rest go back to the front of the queue. Should the culprit be
+    sent back regardless, it breaks the next pool and is caught then.
+    """
+    pool = ProcessPoolExecutor(workers, mp_context=_worker_context())
+    pending: Dict[Future, Tuple[int, Any]] = {}
+    submitted = 0
+    broken = False
+    try:
+        while (queue or pending) and not broken:
+            while queue and len(pending) < 2 * workers:
+                task = queue.popleft()
+                try:
+                    future = pool.submit(worker, task)
+                except BrokenProcessPool:
+                    queue.appendleft(task)
+                    broken = True
+                    break
+                pending[future] = (submitted, task)
+                submitted += 1
+            if broken:
+                break
+            done, _ = wait(pending, return_when=FIRST_COMPLETED)
+            for future in done:
+                if isinstance(future.exception(), BrokenProcessPool):
+                    broken = True  # Settled with the rest of the pending tasks below.
+                    continue
+                _, task = pending.pop(future)
+                yield _outcome(future, task, on_failure)
+                progress.update()
+    finally:
+        pool.shutdown(wait=True, cancel_futures=True)
+
+    # Shut down, every pending task has either finished or failed with the pool.
+    failed = []
+    for future, (order, task) in pending.items():
+        if future.cancelled() or isinstance(future.exception(), BrokenProcessPool):
+            failed.append((order, task))
+        else:
+            yield _outcome(future, task, on_failure)
+            progress.update()
+    failed.sort(key=lambda entry: entry[0])
+    queue.extendleft(task for _, task in reversed(failed[workers + 1 :]))
+    return [task for _, task in failed[: workers + 1]]
+
+
+def _run_alone(worker, task, on_failure):
+    """Run one task in a process of its own and return its outcome."""
+    pool = ProcessPoolExecutor(1, mp_context=_worker_context())
+    try:
+        future = pool.submit(worker, task)
+        wait([future])
+    finally:
+        pool.shutdown(wait=True)
+    return _outcome(future, task, on_failure)
+
+
+def _outcome(future, task, on_failure):
+    """The task's result, or ``on_failure(task, reason)`` when it has none."""
+    error = future.exception()
+    if error is None:
+        return future.result()
+    if isinstance(error, BrokenProcessPool):
+        return on_failure(task, "worker process died, possibly out of memory")
+    if isinstance(error, Exception):
+        return on_failure(task, f"{type(error).__name__}: {error}")
+    raise error
 
 
 def list_files(root: str, extensions: Sequence[str]) -> List[str]:

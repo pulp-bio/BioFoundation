@@ -21,21 +21,26 @@
 
 """Preprocess the CHB-MIT seizure corpus into train/val/test LMDBs.
 
-This reproduces the BIOT preprocessing, which CBraMod and LaBraM also use, and keeps
-its choices unchanged so that results stay comparable with theirs:
+This replicates the CHB-MIT preprocessing of BIOT, as reused by CBraMod, so that
+results stay directly comparable with those works. That preprocessing has known
+issues (see https://github.com/wjq-learning/CBraMod/issues/29). They are kept on
+purpose, not overlooked, and correcting them here would break that comparability:
 
 * Splits follow the recording folders: chb21 and chb22 validate, chb23 and chb24 test.
   chb21 is a later session of chb01, so one patient spans train and validation, and
   the split summary reports that overlap.
 * A window is positive only if a seizure onset or offset falls inside it, so a window
   lying wholly within a long seizure is labelled 0.
-* Each seizure is re-windowed with a 5 s hop from 1 s before onset to 1 s after offset,
-  all labelled 1, in every split. A window cut short by the end of the recording is
-  resampled to full length, as BIOT's loader does.
-* Recordings missing any of the 16 bipolar channels are skipped.
+* For every seizure, extra windows starting every 5 s from 1 s before onset until 1 s
+  after offset are added and all labelled 1, in every split including test. A window
+  cut short by the end of a recording is resampled to full length, as BIOT's loader does.
+* chb12, chb13 and chb17 never reach this script, because make_chb_mit_pickles.py
+  follows the reference's fixed patient table. Recordings missing any of the 16 bipolar
+  channels are skipped.
 
-References: https://github.com/ycq091044/BIOT/blob/main/datasets/CHB-MIT/process2.py
-and https://github.com/wjq-learning/CBraMod/blob/main/preprocessing/CHB-MIT/process2.py
+References:
+    https://github.com/ycq091044/BIOT/blob/main/datasets/CHB-MIT/process2.py
+    https://github.com/wjq-learning/CBraMod/blob/main/preprocessing/CHB-MIT/process2.py
 """
 
 import os
@@ -68,6 +73,8 @@ CHANNEL_NAMES = [
 NUM_CHANNELS = len(CHANNEL_NAMES)
 CHANNEL_COORDS = bipolar_coordinates([tuple(name.split("-")) for name in CHANNEL_NAMES])
 
+# The reference's split, by folder name. chb21 is chb01 recorded again; the alias is
+# used only for subject_id, so that the resulting overlap is visible in the summary.
 VAL_PATIENTS = {"chb21", "chb22"}
 TEST_PATIENTS = {"chb23", "chb24"}
 PATIENT_ALIASES = {"chb21": "chb01"}
@@ -116,6 +123,8 @@ def process_recording(task):
     length = raw.shape[1]
     samples = []
 
+    # As in the reference: only a seizure onset or offset inside the window makes it
+    # positive. Kept for comparability; see the module docstring.
     def contains_boundary(window_start, window_end):
         return any(
             window_start < start < window_end or window_start < end < window_end
@@ -141,6 +150,8 @@ def process_recording(task):
             continue
         emit(f"{record_id}-{start}", raw[:, start:end], contains_boundary(start, end))
 
+    # As in the reference: added to every split, labelled 1 even past the seizure's end,
+    # with truncated windows stretched to full length. Kept for comparability.
     hop = SEIZURE_HOP_SECONDS * SOURCE_FREQ
     pad = SEIZURE_PAD_SECONDS * SOURCE_FREQ
     for seizure_index, (seizure_start, seizure_end) in enumerate(seizures):

@@ -69,7 +69,7 @@ Every script reads the raw corpus from `--input_dir` and writes to `--output_dir
 | SEED-FRA, SEED-GER | `make_seed_fra_ger`, once per corpus | `$DATA_PATH/pretraining/SEED-FRA`, `.../SEED-GER` |
 | BOAS, GWD, SleepEDFx, BCI-NER | `make_boas`, `make_gwd`, `make_sleepedfx`, `make_bci_ner` | `$DATA_PATH/pretraining/<corpus>` |
 
-`make_chb_mit_pickles` reads EDFs with `pyedflib`, as the reference does. `unrar_isruc` needs the `rarfile` package and an extraction tool such as `unrar`; extracting the archives with any such tool gives the same layout.
+`make_chb_mit_pickles` reads EDFs with `pyedflib`, as the reference does. `unrar_isruc` needs the `rarfile` package and an extraction tool such as `unrar`; extracting the archives with any such tool gives the same layout. Where to download each corpus, the access it requires, the input layout each script expects, and how to size and run TUEG are described in [`make_datasets/README.md`](../../make_datasets/README.md#s-cerebro-dataset-preprocessing-lmdb).
 
 ```bash
 python -m make_datasets.make_tuab \

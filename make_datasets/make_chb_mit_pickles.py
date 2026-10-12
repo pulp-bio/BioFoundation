@@ -21,12 +21,14 @@
 
 """Convert raw CHB-MIT recordings into the per-recording pickles make_chb_mit.py reads.
 
-This is the first of the two CHB-MIT steps. It reproduces the BIOT/CBraMod
+This is the first of the two CHB-MIT steps. It replicates the BIOT/CBraMod
 ``process1.py``, including its fixed table of patients and recordings, which leaves
-out chb12, chb13 and chb17. Each recording becomes ``chbXX/chbXX_NN.edf.pkl`` under the
-output directory: a dictionary from channel name to signal in the EDF's physical units,
-plus ``metadata`` holding the seizure count and ``times``, each seizure's start and end
-as sample indices at 256 Hz.
+out chb12, chb13 and chb17. Like the rest of this preprocessing, that choice has known
+issues (see https://github.com/wjq-learning/CBraMod/issues/29) and is kept so that
+results stay comparable with those works. Each recording becomes
+``chbXX/chbXX_NN.edf.pkl`` under the output directory: a dictionary from channel name
+to signal in the EDF's physical units, plus ``metadata`` holding the seizure count and
+``times``, each seizure's start and end as sample indices at 256 Hz.
 
 Reference: https://github.com/wjq-learning/CBraMod/blob/main/preprocessing/CHB-MIT/process1.py
 """
@@ -40,9 +42,11 @@ from make_datasets.common import build_arg_parser, run_jobs
 
 SOURCE_FREQ = 256
 
-# (patient, reference recording, first other recording, last other recording, summary
-# block). The channels listed for the reference recording in the given "Channels
-# changed" block of the patient's summary are the channels kept for all its recordings.
+# The reference's fixed table, kept for comparability: chb12, chb13 and chb17 are not in
+# it and are therefore never converted. Each entry is (patient, reference recording,
+# first other recording, last other recording, summary block). The channels listed for
+# the reference recording in the given "Channels changed" block of the patient's
+# summary are the channels kept for all its recordings.
 RECORDINGS = [
     ("01", "01", 2, 46, 0), ("02", "01", 2, 35, 0), ("03", "01", 2, 38, 0),
     ("05", "01", 2, 39, 0), ("06", "01", 2, 24, 0), ("07", "01", 2, 19, 0),
@@ -133,7 +137,8 @@ def convert_patient(task):
         print(f"  skipping {folder}: no {os.path.basename(summary)} in {input_dir}")
         return 0
     channel_names, channel_indices = summary_channels(summary, block)
-    os.makedirs(os.path.join(output_dir, folder), exist_ok=True)
+    if not dry_run:
+        os.makedirs(os.path.join(output_dir, folder), exist_ok=True)
 
     def write(number, channels):
         filename = f"{folder}_{number}.edf"

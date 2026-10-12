@@ -20,10 +20,15 @@
 """Stable contracts shared by model-specific implementations."""
 
 from biofoundation.core.batch import BatchRequirements, SignalBatch, as_signal_batch, require_batch_fields
+from biofoundation.core.checkpoints import SafetensorsCheckpointMixin
+from biofoundation.core.protocols import PredictionHead, SignalEncoder
 
 __all__ = [
     "BatchRequirements",
+    "PredictionHead",
+    "SafetensorsCheckpointMixin",
     "SignalBatch",
+    "SignalEncoder",
     "as_signal_batch",
     "require_batch_fields",
 ]

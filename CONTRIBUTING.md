@@ -10,15 +10,17 @@ BioFoundation is both a research repository and an onboarding codebase. Contribu
 - Preserve the full Apache 2.0 header in every Python source and Hydra YAML file.
 - Normalize task input through `biofoundation.core.batch.as_signal_batch`.
 - Keep model-family metadata in `biofoundation/model_registry.py`, including its paper and Hugging Face repository.
+- Change `biofoundation/` additively. New fields, functions, and classes are fine; existing names must not change signature or behaviour, and new defaults must leave existing callers observing no difference. A change that cannot be made additively needs a deprecation period and a major version bump of `biofoundation.__version__`.
+- Record decisions that are expensive to reverse as an ADR under [`docs/adr`](docs/adr/).
 - Use Hydra configs for reproducible settings instead of embedding experiment paths or hyperparameters in Python.
 - Mark local values that a new user must supply with `#CHANGEME` and document the expected value.
 
 ## Adding a Model
 
-1. Add the `nn.Module` implementation under `models/` and its Hydra model config under `config/model/`.
+1. Add the `nn.Module` implementation under `models/` and its Hydra model config under `config/model/`. A family may either bundle its output layer into the model, as the five original families do, or separate an encoder from a prediction head under `models/model_heads/` with a matching `config/model_head/` entry. The second shape is described by the protocols in `biofoundation/core/protocols.py` and lets one pre-trained encoder serve every downstream task.
 2. Add pre-training and fine-tuning experiments under `config/experiment/`.
 3. Use an existing task when its behavior fits. New task steps must use the shared batch adapter.
-4. Register the model in `biofoundation/model_registry.py`, including modalities, architecture, experiment names, batch requirements, paper, and Hugging Face URL.
+4. Register the model in `biofoundation/model_registry.py`, including modalities, architecture, experiment names, batch requirements, venue, paper, and Hugging Face URL. Use the case-folded display name as the key, and list any prediction heads in `head_targets`. Setting `model_family` in the experiment lets a task look its family up and enforce the declared batch requirements at runtime. Only the S-CEReBrO tasks read it today; the five bundled families validate nothing at runtime.
 5. Add a model page under `docs/model/` with input assumptions, training details, and checkpoint usage.
 6. Extend the contract tests for any new shared behavior.
 

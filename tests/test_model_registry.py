@@ -30,7 +30,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ModelRegistryTest(unittest.TestCase):
     def test_registry_contains_every_published_model(self):
-        self.assertEqual(set(MODEL_REGISTRY), {"femba", "luna", "tinymyo", "lumamba", "panluna"})
+        self.assertEqual(
+            set(MODEL_REGISTRY),
+            {"femba", "luna", "tinymyo", "lumamba", "panluna", "s-cerebro"},
+        )
 
     def test_model_targets_and_experiments_exist(self):
         for spec in MODEL_REGISTRY.values():

@@ -1,0 +1,112 @@
+# @package _global_
+#*----------------------------------------------------------------------------*
+#* Copyright (C) 2026 ETH Zurich, Switzerland                                 *
+#* SPDX-License-Identifier: Apache-2.0                                        *
+#*                                                                            *
+#* Licensed under the Apache License, Version 2.0 (the "License");            *
+#* you may not use this file except in compliance with the License.           *
+#* You may obtain a copy of the License at                                    *
+#*                                                                            *
+#* http://www.apache.org/licenses/LICENSE-2.0                                 *
+#*                                                                            *
+#* Unless required by applicable law or agreed to in writing, software        *
+#* distributed under the License is distributed on an "AS IS" BASIS,          *
+#* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   *
+#* See the License for the specific language governing permissions and        *
+#* limitations under the License.                                             *
+#*                                                                            *
+#* Author:  BioFoundation Contributors                                        *
+#*----------------------------------------------------------------------------*
+tag: SCEReBrO_finetune
+
+model_size: tiny
+
+# Download root for the Hugging Face release, so a run can name the checkpoint without
+# restating the path: pretrained_safetensors_path='${pretrained_root}/S_CEReBrO.safetensors'
+pretrained_root: ${env:CHECKPOINT_DIR}/pretrained/S-CEReBrO
+
+# Names the registry entry whose BatchRequirements the task enforces on every batch.
+model_family: s-cerebro
+
+# Each file in config/dataset/ owns everything that varies per corpus, including the
+# matching head, task and criterion. Switch with: dataset=isruc
+
+gpus: -1
+num_nodes: 1
+num_workers: 4
+batch_size: 64
+
+seed: 0
+training: True
+resume: False
+final_validate: True
+final_test: True
+find_unused_parameters: True
+
+pretrained_checkpoint_path: null
+pretrained_safetensors_path: null
+
+# S-CEReBrO normalises with min-max in LMDBDataset, not here. Disabled so the
+# inherited quantile settings cannot be misread as active.
+input_normalization:
+  normalize: False
+
+defaults:
+  # model_head, task and criterion come from the dataset group. Setting them here
+  # would win over it, since Hydra applies a config's own values after its defaults.
+  - /dataset: tuab
+  - override /data_module: finetune_data_module_SCEReBrO
+  - override /model: SCEReBrO_tiny
+  - override /scheduler: cosine
+
+task:
+  freeze_backbone: False    # True gives a linear-probe style run
+  layerwise_lr_decay: 0.95
+
+io:
+  checkpoint_dirpath: ${env:CHECKPOINT_DIR}/checkpoints
+  base_output_path: ${env:CHECKPOINT_DIR}/outputs
+  version: ${tag}_${model_size}
+
+callbacks:
+  lr_monitor:
+    _target_: 'pytorch_lightning.callbacks.LearningRateMonitor'
+    logging_interval: step
+  progress_bar:
+    _target_: 'pytorch_lightning.callbacks.TQDMProgressBar'
+    refresh_rate: 50
+  early_stopping:
+    _target_: 'pytorch_lightning.callbacks.EarlyStopping'
+    monitor: 'val_loss'
+    patience: 35
+    mode: 'min'
+    verbose: True
+
+model_checkpoint:
+  save_last: True
+  monitor: "val_loss"
+  mode: "min"
+  save_top_k: 1
+  every_n_epochs: 1
+
+trainer:
+  accelerator: gpu
+  num_nodes: ${num_nodes}
+  devices: ${gpus}
+  strategy: ddp
+  max_epochs: 50
+  gradient_clip_val: 1
+  check_val_every_n_epoch: 1
+  accumulate_grad_batches: 1
+
+optimizer:
+  optim: AdamW
+  lr: 1e-4
+  betas: [0.9, 0.999]
+  weight_decay: 0.05
+
+scheduler:
+  trainer: ${trainer}
+  warmup_epochs: 5
+  min_lr: 1e-5
+  warmup_lr_init: 1e-5

@@ -71,7 +71,7 @@ def process_recording(task):
         # the wrong factor, so say so rather than failing quietly.
         source_freq = float(SAMPLING_FREQ)
         print(
-            f"  {os.path.basename(path)}: sample_rate unreadable ({type(error).__name__}); "
+            f"  {os.path.basename(relative_path)}: sample_rate unreadable ({type(error).__name__}); "
             f"assuming {source_freq:g} Hz"
         )
 
@@ -84,7 +84,7 @@ def process_recording(task):
         eeg_indices = np.arange(signal.shape[0])
         channel_names = [f"Ch{index + 1}" for index in eeg_indices]
         print(
-            f"  {os.path.basename(path)}: channel labels unreadable "
+            f"  {os.path.basename(relative_path)}: channel labels unreadable "
             f"({type(error).__name__}); using positional names"
         )
 

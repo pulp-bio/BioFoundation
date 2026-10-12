@@ -105,7 +105,7 @@ def consensus_annotations(input_dir: str) -> pd.DataFrame:
     return frame.where(frame.isin([0.0, 1.0]), np.nan)
 
 
-def bipolar_montage(raw):
+def bipolar_montage(raw, filename: str):
     """Derive the bipolar montage from a referential recording.
 
     Returns the montage signal and its channel coordinates, keeping only the pairs
@@ -134,7 +134,7 @@ def bipolar_montage(raw):
         # The channel count feeds model.num_channels, so a short montage must not pass
         # unnoticed: it would silently train on fewer channels than the config declares.
         print(
-            f"  {os.path.basename(path)}: {len(signals)} of {len(BIPOLAR_MONTAGE)} bipolar "
+            f"  {filename}: {len(signals)} of {len(BIPOLAR_MONTAGE)} bipolar "
             f"pairs available; missing {', '.join(missing)}"
         )
 
@@ -161,7 +161,7 @@ def process_recording(task):
     if raw.info["sfreq"] != SAMPLING_FREQ:
         raw.resample(SAMPLING_FREQ, n_jobs=1, verbose="ERROR")
 
-    montage, coords = bipolar_montage(raw)
+    montage, coords = bipolar_montage(raw, filename)
     if montage is None or montage.shape[1] < WINDOW_SAMPLES:
         return []
 
@@ -170,23 +170,20 @@ def process_recording(task):
     stem = os.path.splitext(filename)[0]
 
     samples = []
-    # As in the reference preprocessing behind the published results: window k spans
-    # seconds 5k to 5k + 5 but takes the per-second label of second k, so labels do not
-    # match the signal they are attached to. The windows still tile the whole recording.
-    for second in range(seconds):
-        label = labels[second]
-        if label not in (0, 1):
+    # Each window is labelled from its own seconds: seizure if any of them is, skipped if
+    # any lacks consensus. The reference gave window k the label of second k although it
+    # spans seconds 5k to 5k + 5, so neonate results differ from its preprocessing.
+    for index in range(seconds // WINDOW_SECONDS):
+        window_labels = labels[index * WINDOW_SECONDS : (index + 1) * WINDOW_SECONDS]
+        if np.isnan(window_labels).any():
             continue
-        start = second * WINDOW_SAMPLES
-        window = montage[:, start : start + WINDOW_SAMPLES]
-        if window.shape[1] != WINDOW_SAMPLES:
-            continue
+        start = index * WINDOW_SAMPLES
         samples.append((
             split,
-            f"{stem}-{second}".encode(),
+            f"{stem}-{index}".encode(),
             {
-                "eeg": window.astype(np.float32),
-                "label": int(label),
+                "eeg": montage[:, start : start + WINDOW_SAMPLES].astype(np.float32),
+                "label": int(window_labels.max()),
                 "channel_coords": coords,
                 "subject_id": str(subject),
             },

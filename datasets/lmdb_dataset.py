@@ -31,6 +31,34 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+# LMDB refuses to open a path twice in one process, and run_train.py re-instantiates the
+# data module before testing while the first one may still hold its environment. Every
+# reader in the process therefore shares one reference-counted environment per path.
+_SHARED_ENVS: Dict[str, List[Any]] = {}
+
+
+def acquire_env(path: str) -> Any:
+    """Return the process's read-only environment for ``path``, opening it if needed."""
+    key = os.path.realpath(path)
+    entry = _SHARED_ENVS.get(key)
+    if entry is None:
+        env = lmdb.open(path, readonly=True, lock=False, readahead=True, max_readers=64, map_async=True)
+        entry = _SHARED_ENVS[key] = [env, 0]
+    entry[1] += 1
+    return entry[0]
+
+
+def release_env(path: str) -> None:
+    """Drop one reference to ``path``'s environment, closing it after the last one."""
+    key = os.path.realpath(path)
+    entry = _SHARED_ENVS.get(key)
+    if entry is None:
+        return
+    entry[1] -= 1
+    if entry[1] <= 0:
+        del _SHARED_ENVS[key]
+        entry[0].close()
+
 
 def resolve_lmdb_path(path: str, split: Optional[str] = None) -> Tuple[str, Optional[str]]:
     """Resolve a dataset directory and split name to an LMDB file and its index file.
@@ -138,19 +166,13 @@ class LMDBDataset(torch.utils.data.Dataset):
         print(f"[LMDBDataset] {os.path.basename(self.lmdb_path)}: {len(self.keys)} entries")
 
     def _ensure_env(self) -> None:
-        """Open the LMDB environment lazily, on first read.
+        """Attach to the LMDB environment on first read.
 
-        Construction deliberately leaves ``env`` unset. LMDB refuses to open the same
-        path twice in one process, and ``run_train.py`` re-instantiates the data module
-        before the rank-zero test pass while the original may still be referenced. It
-        also avoids handing an open handle to forked dataloader workers. This mirrors
-        how :class:`~datasets.tueg_dataset.TUEGDataset` manages its environment.
+        Opening lazily keeps an open handle out of forked dataloader workers, which
+        cannot open a path their parent already had open.
         """
         if self.env is None:
-            self.env = lmdb.open(
-                self.lmdb_path, readonly=True, lock=False, readahead=True,
-                max_readers=64, map_async=True,
-            )
+            self.env = acquire_env(self.lmdb_path)
 
     def _load_keys(self) -> List[bytes]:
         """Read the sample keys from the index file, or scan the LMDB if there is none."""
@@ -162,14 +184,12 @@ class LMDBDataset(torch.utils.data.Dataset):
                 raise ValueError(f"Index file {self.meta_path} contains no keys")
             return [key.encode() if isinstance(key, str) else key for key in keys]
 
-        # No index file: scan once through a temporary environment, then close it so
-        # construction still leaves no handle open.
-        env = lmdb.open(self.lmdb_path, readonly=True, lock=False, readahead=True)
+        env = acquire_env(self.lmdb_path)
         try:
             with env.begin(buffers=True) as txn:
                 return [bytes(key) for key in txn.cursor().iternext(keys=True, values=False)]
         finally:
-            env.close()
+            release_env(self.lmdb_path)
 
     def __len__(self) -> int:
         """Number of samples."""
@@ -180,6 +200,9 @@ class LMDBDataset(torch.utils.data.Dataset):
         flat = x.reshape(-1, x.shape[-1])
         minimum = flat.min(dim=1, keepdim=True).values
         maximum = flat.max(dim=1, keepdim=True).values
+        # Absolute epsilon, as in the reference that produced the released checkpoint.
+        # Negligible for corpora stored in µV; for those stored in volts it is around 1%
+        # of a typical range, so their windows land slightly inside [-1, 1].
         scaled = (flat - minimum) / (maximum - minimum + 1e-6)
         return ((scaled - 0.5) * 2).reshape(x.shape)
 
@@ -267,10 +290,10 @@ class LMDBDataset(torch.utils.data.Dataset):
         return sample
 
     def __del__(self):
-        """Close the LMDB environment."""
-        env = getattr(self, "env", None)
-        if env is not None:
+        """Release this dataset's reference to the LMDB environment."""
+        if getattr(self, "env", None) is not None:
+            self.env = None
             try:
-                env.close()
+                release_env(self.lmdb_path)
             except Exception:
                 pass

@@ -73,8 +73,9 @@ class BatchRequirements:
     label: bool = False
     channel_names: bool = False
     channel_locations: bool = False
-    channel_coords: bool = False
     sensor_type: bool = False
+    # Appended after the original fields so positional construction keeps its meaning.
+    channel_coords: bool = False
     num_padded_channels: bool = False
     num_padded_timesteps: bool = False
 
@@ -110,8 +111,8 @@ def require_batch_fields(batch: SignalBatch, requirements: BatchRequirements) ->
         ("label", requirements.label),
         ("channel_names", requirements.channel_names),
         ("channel_locations", requirements.channel_locations),
-        ("channel_coords", requirements.channel_coords),
         ("sensor_type", requirements.sensor_type),
+        ("channel_coords", requirements.channel_coords),
         ("num_padded_channels", requirements.num_padded_channels),
         ("num_padded_timesteps", requirements.num_padded_timesteps),
     )

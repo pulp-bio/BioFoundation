@@ -17,7 +17,7 @@
 #*                                                                            *
 #* Author:  BioFoundation Contributors                                        *
 #*----------------------------------------------------------------------------*
-# Mumtaz: depression. 20 channels, 5 s windows, 2 classes.
+# Mumtaz: depression. 19 channels, 5 s windows, 2 classes.
 defaults:
   - /model_head: mlp_classification_head
   - override /task: finetune_task_SCEReBrO
@@ -28,7 +28,7 @@ dataset_kind: window
 label_mode: classification
 
 model:
-  num_channels: 20
+  num_channels: 19
 
 model_head:
   num_classes: 2

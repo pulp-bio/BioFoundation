@@ -93,14 +93,17 @@ class MaskedAutoencoderPretrainingTask(SafetensorsCheckpointMixin, pl.LightningM
             batch["input"] = x.reshape(batch_size, channels, -1, self.patch_size)
         return batch
 
-    def _validation_generator(self, batch: Dict[str, Any]) -> torch.Generator:
+    def _validation_generator(self, batch: Dict[str, Any], batch_idx: int) -> torch.Generator:
         """Seed the validation mask so ``val_loss`` is comparable across epochs.
 
         Checkpoint selection monitors ``val_loss``, so a fresh random mask each epoch
-        would add sampling noise to the compared quantity. Training stays random.
+        would add sampling noise to the compared quantity. The seed follows the batch
+        index and rank, which identify the same data every epoch, so each batch keeps
+        its own mask rather than all sharing one. Training stays random.
         """
+        seed = int(self.hparams.get("seed", 0))
         generator = torch.Generator(device=batch["input"].device)
-        generator.manual_seed(int(self.hparams.get("seed", 0)) * 1_000_003 + int(batch["input"].shape[0]))
+        generator.manual_seed((seed * 1_000_003 + self.global_rank) * 1_000_003 + batch_idx)
         return generator
 
     def _shared_step(
@@ -139,7 +142,9 @@ class MaskedAutoencoderPretrainingTask(SafetensorsCheckpointMixin, pl.LightningM
 
     def validation_step(self, batch: Dict[str, Any], batch_idx: int) -> torch.Tensor:
         """Compute and log the validation reconstruction loss."""
-        loss = self._shared_step(as_signal_batch(batch), generator=self._validation_generator(batch))
+        loss = self._shared_step(
+            as_signal_batch(batch), generator=self._validation_generator(batch, batch_idx)
+        )
         self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         return loss
 
@@ -219,6 +224,9 @@ class MaskedAutoencoderPretrainingTask(SafetensorsCheckpointMixin, pl.LightningM
 
     def configure_optimizers(self) -> Dict[str, Any]:
         """Build the optimiser and the per-step learning-rate scheduler."""
+        # One group, as in the reference that produced the released checkpoint, so
+        # weight decay also reaches norms, biases, positional tables and the mask and
+        # pad tokens. Excluding them is the usual choice but would change the recipe.
         params = list(self.model.parameters()) + list(self.model_head.parameters())
         optimizer_name = str(self.hparams.optimizer.optim).lower()
         lr = float(self.hparams.optimizer.lr)

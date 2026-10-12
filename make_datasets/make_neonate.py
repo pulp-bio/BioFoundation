@@ -144,7 +144,7 @@ def bipolar_montage(raw):
 
 
 def process_recording(task):
-    """Filter one recording, build its bipolar montage and emit one window per second."""
+    """Filter one recording, build its bipolar montage and cut it into labelled windows."""
     split, input_dir, filename, annotations = task
     subject = subject_of(filename)
     if subject is None:
@@ -170,6 +170,9 @@ def process_recording(task):
     stem = os.path.splitext(filename)[0]
 
     samples = []
+    # As in the reference preprocessing behind the published results: window k spans
+    # seconds 5k to 5k + 5 but takes the per-second label of second k, so labels do not
+    # match the signal they are attached to. The windows still tile the whole recording.
     for second in range(seconds):
         label = labels[second]
         if label not in (0, 1):

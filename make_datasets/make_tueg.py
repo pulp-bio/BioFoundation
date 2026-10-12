@@ -31,11 +31,14 @@ recording from a subject used in the TUAB fine-tuning splits.
 
 import os
 from pathlib import Path
+from typing import Sequence
 
 import mne
 import numpy as np
+from tqdm import tqdm
 
 from make_datasets.common import (
+    DEFAULT_MAP_SIZE,
     SAMPLING_FREQ,
     PackedLMDBWriter,
     build_arg_parser,
@@ -142,6 +145,25 @@ def process_recording(task):
     return windows
 
 
+def estimate_map_size(recordings: Sequence[str]) -> int:
+    """Size the LMDB from the EDF headers, as the reference does.
+
+    Every record is one padded window of fixed size, so the database size follows from
+    the window count; the shared default is far too small for the full corpus. The
+    count ignores TUAB exclusion, so it is an upper bound, and 10% is added for LMDB's
+    own pages.
+    """
+    record_bytes = MAX_CHANNELS * (WINDOW_SAMPLES + 2 * 3) * np.dtype(np.float32).itemsize
+    windows = 0
+    for path in tqdm(recordings, desc="Sizing LMDB"):
+        raw = mne.io.read_raw_edf(path, preload=False, verbose=False)
+        kept = sum(name in ALL_CHANNELS for name in raw.ch_names)
+        if kept == 0 or kept > MAX_CHANNELS:
+            continue
+        windows += int(raw.n_times * SAMPLING_FREQ / raw.info["sfreq"]) // WINDOW_SAMPLES
+    return max(int(record_bytes * windows * 1.1), DEFAULT_MAP_SIZE)
+
+
 def tuab_subject_ids(tuab_dir: str) -> set:
     """Return every subject identifier present in the raw TUAB corpus."""
     return {path.name.split("_s")[0] for path in Path(tuab_dir).rglob("*.edf")}
@@ -185,9 +207,13 @@ def main():
     recordings = sorted(str(path) for path in Path(args.input_dir).rglob("*.edf"))
     tasks = [(path, tuab_subjects) for path in recordings]
 
+    map_size = estimate_map_size(recordings)
+    print(f"LMDB map_size = {map_size:,} bytes")
+
     writer = PackedLMDBWriter(
         lmdb_path=os.path.join(args.output_dir, "TUEG.lmdb"),
         keys_path=os.path.join(args.output_dir, "TUEG_keys.txt"),
+        map_size=map_size,
         dry_run=args.dry_run,
     )
     for windows in run_jobs(process_recording, tasks, args.num_workers, "TUEG recordings"):

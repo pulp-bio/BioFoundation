@@ -17,11 +17,7 @@
 #*                                                                            *
 #* Author:  BioFoundation Contributors                                        *
 #*----------------------------------------------------------------------------*
-# Declared here rather than in the experiment so that selecting this group with
-# model=SCEReBrO_tiny also updates model_size, which names the output directory
-# and the pre-trained checkpoint file. The two cannot drift apart.
-model_size: tiny
-
+# The single released size: 2.4M parameters, matching S_CEReBrO.safetensors.
 model:
   _target_: models.s_cerebro.SCerebroEncoder
 

@@ -23,10 +23,11 @@ import os
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional
 
-import lmdb
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+
+from datasets.lmdb_dataset import acquire_env, release_env
 
 
 class TUEGDataset(Dataset):
@@ -84,11 +85,9 @@ class TUEGDataset(Dataset):
         print(f"[TUEGDataset] {os.path.basename(self.lmdb_path)}: {len(self.keys)} windows")
 
     def _ensure_env(self) -> None:
-        """Open the LMDB environment lazily so it is not inherited across worker forks."""
+        """Attach to the LMDB environment lazily so it is not inherited across worker forks."""
         if self.env is None:
-            self.env = lmdb.open(
-                self.lmdb_path, readonly=True, lock=False, readahead=True, map_async=True
-            )
+            self.env = acquire_env(self.lmdb_path)
 
     def __len__(self) -> int:
         """Number of windows."""
@@ -137,10 +136,10 @@ class TUEGDataset(Dataset):
         return sample
 
     def __del__(self):
-        """Close the LMDB environment."""
-        env = getattr(self, "env", None)
-        if env is not None:
+        """Release this dataset's reference to the LMDB environment."""
+        if getattr(self, "env", None) is not None:
+            self.env = None
             try:
-                env.close()
+                release_env(self.lmdb_path)
             except Exception:
                 pass

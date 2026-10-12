@@ -45,7 +45,7 @@ This is why the registry entry declares only `channel_coords` and not `num_padde
 
 ### Preprocessing
 
-Datasets are prepared into LMDB with [`make_datasets`](../../make_datasets/). Each entry is a pickled dictionary with `eeg`, `channel_coords`, and optionally `label` and `subject_id`. Electrode coordinates come from [`make_datasets/electrode_positions.py`](../../make_datasets/electrode_positions.py), which follows the BESA electrode and surface location tables and assigns fixed coordinates to reference electrodes that have no scalp position of their own.
+Datasets are prepared into LMDB with [`make_datasets`](../../make_datasets/). Each entry is a pickled dictionary with `eeg`, `channel_coords`, and optionally `label` and `subject_id`. Electrode coordinates come from [`make_datasets/electrode_positions.py`](../../make_datasets/electrode_positions.py), which takes its angles from the BESA electrode and surface location tables and assigns fixed coordinates to reference electrodes that have no scalp position of their own. The conversion to Cartesian reads those angles as azimuth and elevation rather than BESA's angle from the vertex and azimuth, exactly as the reference implementation that produced the released checkpoint does, so the positions are not anatomical: Fz, FCz, AFz and Fpz coincide, as do Pz, CPz, POz and Oz. The checkpoint's channel embeddings were learned on these values, so they must not be corrected without pre-training again.
 
 ```bash
 python -m make_datasets.make_tuab \
@@ -108,19 +108,17 @@ Prepared datasets and their shapes:
 | PhysioNet-MI | motor imagery | 64 | 4 s | 4 |
 | SHU-MI | motor imagery | 32 | 4 s | 2 |
 | STEW | workload | 14 | 4 s | 3 |
-| Mumtaz | depression | 20 | 5 s | 2 |
+| Mumtaz | depression | 19 | 5 s | 2 |
 | MentalArithmetic | mental arithmetic | 20 | 5 s | 2 |
 | SEED-V | emotion | 62 | 4 s | 5 |
 | ISRUC | sleep staging | 6 | 30 s x 20 epochs | 5 |
 | SEED-VIG | vigilance regression | 17 | 8 s | continuous |
 
-### Model Variants
+### Model Size
 
-| Variant | `embed_dim` | `depth` | `num_heads` | Config |
-| --- | --- | --- | --- | --- |
-| tiny | 180 | 6 | 5 | [`SCEReBrO_tiny`](../../config/model/SCEReBrO_tiny.yaml) |
-| small | 200 | 12 | 10 | [`SCEReBrO_small`](../../config/model/SCEReBrO_small.yaml) |
-| base | 400 | 12 | 16 | [`SCEReBrO_base`](../../config/model/SCEReBrO_base.yaml) |
+S-CEReBrO is released in a single size of 2.4M parameters, built by
+[`SCEReBrO_tiny`](../../config/model/SCEReBrO_tiny.yaml): `embed_dim` 180, `depth` 6,
+`num_heads` 5.
 
 ### Training Setup
 
@@ -134,7 +132,7 @@ Fine-tune on TUAB, the default corpus:
 
 ```bash
 python -u run_train.py +experiment=SCEReBrO_finetune \
-  pretrained_safetensors_path=/absolute/path/to/SCEReBrO_tiny.safetensors
+  pretrained_safetensors_path=/absolute/path/to/S_CEReBrO.safetensors
 ```
 
 Fine-tune on another corpus by selecting it. Each file in [`config/dataset`](../../config/dataset/) owns everything that varies per corpus: its path, whether samples are windows or sequences, whether labels are classes or a continuous target, the channel count, and the matching prediction head, task and criterion.
@@ -153,7 +151,7 @@ python -u run_train.py +experiment=SCEReBrO_finetune dataset=seed-vig
 | `physionet-mi` | motor imagery | 64 | 4 s | 4 | `MlpClassificationHead` |
 | `shu-mi` | motor imagery | 32 | 4 s | 2 | `MlpClassificationHead` |
 | `stew` | workload | 14 | 4 s | 3 | `MlpClassificationHead` |
-| `mumtaz` | depression | 20 | 5 s | 2 | `MlpClassificationHead` |
+| `mumtaz` | depression | 19 | 5 s | 2 | `MlpClassificationHead` |
 | `mental-arithmetic` | mental arithmetic | 20 | 5 s | 2 | `MlpClassificationHead` |
 | `seed-v` | emotion | 62 | 4 s | 5 | `MlpClassificationHead` |
 | `isruc` | sleep staging | 6 | 30 s x 20 epochs | 5 | `SequenceClassificationHead` |
@@ -187,7 +185,7 @@ Fine-tuning uses layer-wise learning-rate decay: blocks closer to the input rece
 
 ### Pretrained Weights
 
-The [PulpBio/S-CEReBrO Hugging Face repository](https://huggingface.co/PulpBio/S-CEReBrO) provides tiny, small and base checkpoints matching the model configs in [`config/model`](../../config/model/). The weights are licensed under CC BY-ND 4.0.
+The [PulpBio/S-CEReBrO Hugging Face repository](https://huggingface.co/PulpBio/S-CEReBrO) provides the released checkpoint as `S_CEReBrO.safetensors`, with the Lightning `S_CEReBrO.ckpt` alongside it. It is the 2.4M-parameter encoder built by [`SCEReBrO_tiny`](../../config/model/SCEReBrO_tiny.yaml). The weights are licensed under CC BY-ND 4.0.
 
 `snapshot_download` writes to whatever `local_dir` you give it, resolved relative to the
 current working directory when it is not absolute. The fine-tuning experiment expects
@@ -204,20 +202,11 @@ snapshot_download(
 )
 ```
 
-The checkpoint path can then be written as an interpolation instead of an absolute
-path. `model_size` is declared by the selected `config/model` group, so it always
-matches the encoder being built and the two cannot drift:
+The checkpoint path can then be written relative to `pretrained_root`:
 
 ```bash
-python -u run_train.py +experiment=SCEReBrO_finetune model=SCEReBrO_tiny \
-  'pretrained_safetensors_path=${pretrained_root}/SCEReBrO_${model_size}.safetensors'
-```
-
-Switching size needs one change, and the checkpoint follows:
-
-```bash
-python -u run_train.py +experiment=SCEReBrO_finetune model=SCEReBrO_base \
-  'pretrained_safetensors_path=${pretrained_root}/SCEReBrO_${model_size}.safetensors'
+python -u run_train.py +experiment=SCEReBrO_finetune \
+  'pretrained_safetensors_path=${pretrained_root}/S_CEReBrO.safetensors'
 ```
 
 Single-quote the override so the shell does not expand `${...}` before Hydra sees it.
@@ -225,11 +214,11 @@ Single-quote the override so the shell does not expand `${...}` before Hydra see
 pointed elsewhere with `pretrained_root=/some/other/dir`. An absolute
 `pretrained_safetensors_path` still works exactly as it does for the other families.
 
-The size flag and the checkpoint must agree: loading a `base` checkpoint into a `tiny`
-encoder is not an error, because shape-mismatched tensors are skipped rather than
-forced. Check the `[load:model] loaded=... shape_mismatch=... unexpected=...` line the
-loader prints; on a correct pairing `shape_mismatch` and `unexpected` are both zero and
-`loaded` equals `total_target`.
+Shape-mismatched tensors are skipped rather than forced, so a checkpoint from a
+differently configured encoder loads without error. Check the
+`[load:model] loaded=... shape_mismatch=... unexpected=...` line the loader prints: on a
+matching checkpoint `shape_mismatch` and `unexpected` are both zero and `loaded` equals
+`total_target`.
 
 A Lightning `.ckpt` produced by a local pre-training run is passed with
 `pretrained_checkpoint_path` instead:

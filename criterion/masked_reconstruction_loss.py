@@ -86,8 +86,8 @@ class MaskedReconstructionLoss(nn.Module):
         """Mean of the selected entries, or a differentiable zero if none are selected.
 
         ``values[selection].mean()`` is NaN on an empty selection, which would poison
-        every gradient.
+        every gradient. Branching on ``selection.any()`` would avoid that but synchronise
+        with the GPU on every step, so the empty case is handled arithmetically instead.
         """
-        if not bool(selection.any()):
-            return values.sum() * 0.0
-        return values[selection].mean()
+        selected = torch.where(selection, values, values.new_zeros(()))
+        return selected.sum() / selection.sum().clamp(min=1).to(values.dtype)

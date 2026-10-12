@@ -132,7 +132,7 @@ MODEL_REGISTRY: Mapping[str, ModelSpec] = MappingProxyType(
                 "models.model_heads.mlp_regression_head.MlpRegressionHead",
                 "models.model_heads.sequence_classification_head.SequenceClassificationHead",
             ),
-            size_variants=("tiny", "small", "base"),
+            size_variants=("tiny",),
         ),
     }
 )

@@ -19,11 +19,10 @@
 #*----------------------------------------------------------------------------*
 tag: SCEReBrO_finetune
 
-# model_size is supplied by the selected config/model group, so it always matches
-# the encoder actually being built.
+model_size: tiny
 
-# Download root for the Hugging Face release, so a run can name a checkpoint without
-# restating the path: pretrained_safetensors_path='${pretrained_root}/SCEReBrO_${model_size}.safetensors'
+# Download root for the Hugging Face release, so a run can name the checkpoint without
+# restating the path: pretrained_safetensors_path='${pretrained_root}/S_CEReBrO.safetensors'
 pretrained_root: ${env:CHECKPOINT_DIR}/pretrained/S-CEReBrO
 
 # Names the registry entry whose BatchRequirements the task enforces on every batch.
@@ -57,7 +56,7 @@ defaults:
   # would win over it, since Hydra applies a config's own values after its defaults.
   - /dataset: tuab
   - override /data_module: finetune_data_module_SCEReBrO
-  - override /model: SCEReBrO_tiny        # or SCEReBrO_small, SCEReBrO_base
+  - override /model: SCEReBrO_tiny
   - override /scheduler: cosine
 
 task:

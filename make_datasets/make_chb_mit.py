@@ -19,7 +19,24 @@
 #* Imported from the S-CEReBrO reference implementation (TimeFM).             *
 #*----------------------------------------------------------------------------*
 
-"""Preprocess the CHB-MIT seizure corpus into train/val/test LMDBs."""
+"""Preprocess the CHB-MIT seizure corpus into train/val/test LMDBs.
+
+This reproduces the BIOT preprocessing, which CBraMod and LaBraM also use, and keeps
+its choices unchanged so that results stay comparable with theirs:
+
+* Splits follow the recording folders: chb21 and chb22 validate, chb23 and chb24 test.
+  chb21 is a later session of chb01, so one patient spans train and validation, and
+  the split summary reports that overlap.
+* A window is positive only if a seizure onset or offset falls inside it, so a window
+  lying wholly within a long seizure is labelled 0.
+* Each seizure is re-windowed with a 5 s hop from 1 s before onset to 1 s after offset,
+  all labelled 1, in every split. A window cut short by the end of the recording is
+  resampled to full length, as BIOT's loader does.
+* Recordings missing any of the 16 bipolar channels are skipped.
+
+References: https://github.com/ycq091044/BIOT/blob/main/datasets/CHB-MIT/process2.py
+and https://github.com/wjq-learning/CBraMod/blob/main/preprocessing/CHB-MIT/process2.py
+"""
 
 import os
 import pickle
@@ -63,7 +80,10 @@ def patient_of(path: str) -> str:
 
 
 def split_of(path: str) -> str:
-    """Assign a recording to a split by patient, holding two patients out for each."""
+    """Assign a recording to a split by its folder name, as the reference does.
+
+    Deliberately not :func:`patient_of`; see the module docstring.
+    """
     patient = os.path.basename(os.path.dirname(path))
     if patient in TEST_PATIENTS:
         return "test"
@@ -73,13 +93,10 @@ def split_of(path: str) -> str:
 
 
 def process_recording(task):
-    """Window one recording, then re-window each seizure with overlap to enrich positives.
+    """Window one recording, then re-window each seizure to add positives.
 
-    Seizures are rare, so in addition to the non-overlapping pass every annotated
-    seizure is re-sampled with a shorter hop, extending one second either side. A
-    window is positive when a seizure boundary falls strictly inside it. Windows in
-    the seizure pass are truncated at the end of the recording and resampled to the
-    full window length regardless of how much signal they contain.
+    The labelling and the seizure pass follow the reference exactly; see the module
+    docstring for what that implies.
     """
     split, path = task
     with open(path, "rb") as handle:

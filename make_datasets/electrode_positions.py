@@ -172,6 +172,11 @@ def get_electrode_3d_positions(theta, phi, radius=1):
     theta_rad = np.radians(theta)
     phi_rad = np.radians(phi)
 
+    # The tables use BESA's convention, theta from the vertex and phi as azimuth, but this
+    # reads theta as azimuth and phi as elevation, as the reference that produced the
+    # released checkpoint does. Positions are therefore not anatomical (Fz, FCz, AFz and
+    # Fpz coincide, as do Pz, CPz, POz and Oz). The checkpoint's channel embeddings were
+    # learned on these values, so correcting them requires pre-training again.
     x = radius * np.cos(phi_rad) * np.cos(theta_rad)
     y = radius * np.cos(phi_rad) * np.sin(theta_rad)
     z = radius * np.sin(phi_rad)

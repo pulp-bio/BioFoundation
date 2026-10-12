@@ -19,9 +19,7 @@
 #*----------------------------------------------------------------------------*
 tag: SCEReBrO_pretrain
 
-# model_size is supplied by the selected config/model group, so it always matches
-# the encoder actually being built.
-
+model_size: tiny
 model_family: s-cerebro
 
 gpus: -1
@@ -49,7 +47,7 @@ defaults:
   # Hydra requires additions before overrides.
   - /model_head: patch_reconstruction_head
   - override /data_module: pretrain_data_module_SCEReBrO
-  - override /model: SCEReBrO_tiny        # or SCEReBrO_small, SCEReBrO_base
+  - override /model: SCEReBrO_tiny
   - override /task: pretrain_task_SCEReBrO
   - override /criterion: masked_reconstruction_loss
   - override /scheduler: cosine

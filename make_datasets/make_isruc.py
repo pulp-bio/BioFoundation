@@ -28,6 +28,7 @@ timesteps)`` with one label per epoch, and the sequence classification head cons
 """
 
 import os
+import tempfile
 
 import numpy as np
 from mne.io import read_raw_edf
@@ -77,13 +78,27 @@ def recording_pairs(input_dir: str):
     return pairs
 
 
+def read_rec(recording: str, preload: bool):
+    """Read an ISRUC ``.rec`` file, which is EDF under another extension.
+
+    MNE refuses any extension but ``.edf``, so the file is read through an ``.edf``
+    symlink. The reference vendors MNE's reader with the check removed instead; both
+    parse the file identically. The link is removed on return, so with ``preload=False``
+    only the header is usable.
+    """
+    with tempfile.TemporaryDirectory() as directory:
+        link = os.path.join(directory, os.path.splitext(os.path.basename(recording))[0] + ".edf")
+        os.symlink(os.path.abspath(recording), link)
+        return read_raw_edf(link, preload=preload, verbose=False)
+
+
 def resolve_channels(recording: str):
     """Choose the montage present in a recording, deriving it from unipolar channels if needed.
 
     Returns the channel names to pick and their coordinates, or ``(None, None, None)`` when
     the recording has none of the expected montages.
     """
-    present = set(read_raw_edf(recording, preload=False, verbose=False).info["ch_names"])
+    present = set(read_rec(recording, preload=False).info["ch_names"])
     if all(name in present for name in MASTOID_CHANNELS):
         return MASTOID_CHANNELS, MASTOID_COORDS, False
     if all(name in present for name in AURICULAR_CHANNELS):
@@ -98,7 +113,7 @@ def process_recording(task):
     """Cut one night into sequences of consecutive labelled epochs."""
     split, subject, recording, hypnogram, channels, coords, derive_bipolar = task
 
-    raw = read_raw_edf(recording, preload=True, verbose=False)
+    raw = read_rec(recording, preload=True)
     raw.filter(0.3, 35, fir_design="firwin", verbose=False)
     raw.notch_filter(50, verbose=False)
     raw.pick(channels)

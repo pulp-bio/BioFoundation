@@ -91,7 +91,6 @@ Please cite the paper corresponding to the model used in your work. Published pr
 ```bibtex
 @inproceedings{bucagu2026scerebro,
   title={{S-CEReBrO}: Windowed Alternating Attention for Compact {EEG} Representation Learning},
-  author={Bucagu, Glenn Anta and Ingolfsson, Thorir Mar and Li, Yawei and Benini, Luca},
   booktitle={Medical Image Computing and Computer Assisted Intervention (MICCAI)},
   year={2026},
   note={Accepted; proceedings forthcoming},

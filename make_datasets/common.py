@@ -20,6 +20,7 @@
 #*----------------------------------------------------------------------------*
 
 import argparse
+import json
 import os
 import pickle
 from collections import Counter
@@ -112,7 +113,9 @@ class LMDBWriter:
     """Writes pickled EEG samples into one LMDB per split and reports the result.
 
     Transactions are committed every ``COMMIT_INTERVAL`` samples so that a long job does
-    not hold one unbounded write transaction.
+    not hold one unbounded write transaction. Closing writes ``{split}.meta.json`` next to
+    each LMDB, in the reference format ``{"keys", "subject_ids", "labels"}``, so readers
+    index a split without scanning it.
 
     Args:
         output_dir: Directory to create the LMDB files in.
@@ -137,6 +140,8 @@ class LMDBWriter:
         self.labels: Dict[str, Counter] = {split: Counter() for split in self.splits}
         self.shapes: Counter = Counter()
         self.subjects: Dict[str, set] = {split: set() for split in self.splits}
+        # Insertion-ordered, and a repeated key replaces its entry exactly as LMDB does.
+        self.index: Dict[str, Dict[str, Tuple[str, Any]]] = {split: {} for split in self.splits}
 
         self.envs: Dict[str, Any] = {}
         self.txns: Dict[str, Any] = {}
@@ -162,6 +167,10 @@ class LMDBWriter:
         if self.dry_run:
             return
 
+        self.index[split][key.decode()] = (
+            str(sample.get("subject_id", "unknown")),
+            None if label is None else np.asarray(label).tolist(),
+        )
         self.txns[split].put(key, pickle.dumps(sample))
         self.written += 1
         if self.written % COMMIT_INTERVAL == 0:
@@ -170,12 +179,20 @@ class LMDBWriter:
                 self.txns[name] = self.envs[name].begin(write=True)
 
     def close(self) -> None:
-        """Commit and close every LMDB."""
+        """Commit and close every LMDB, then write its index file."""
         if self.dry_run:
             return
         for split in self.splits:
             self.txns[split].commit()
             self.envs[split].close()
+            entries = self.index[split]
+            meta = {
+                "keys": list(entries),
+                "subject_ids": [subject for subject, _ in entries.values()],
+                "labels": [label for _, label in entries.values()],
+            }
+            with open(os.path.join(self.output_dir, f"{split}.meta.json"), "w") as handle:
+                json.dump(meta, handle)
 
     def summarise(self, name: str) -> None:
         """Print per-split sample counts, label distributions and window shapes."""

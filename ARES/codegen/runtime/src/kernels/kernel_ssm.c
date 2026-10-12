@@ -28,6 +28,20 @@
 // Maps to GAP9 SumDotpSS intrinsic for 4-element dot products
 #ifndef CONV1D_USE_SIMD
 #define CONV1D_USE_SIMD 1  // 1 = enable SIMD path for kernel_size=4, 0 = scalar only
+
+// upper bound for the hoisted B*s_x row (FEMBA uses d_state=16)
+#define SSM_MAX_D_STATE 64
+
+// Q15 saturation. On PULP this is a single p.clip; the plain-C form compiles to
+// lui+addi+p.max+p.min (4 instructions) because GCC does not pattern-match it.
+// Mirrors clip8_hwc() in kernel_conv2d.c.
+// ONLY valid for int32 inputs: p.clip is a 32-bit operation, so an int64
+// argument would be narrowed (and wrap) before the clamp is applied.
+#if defined(__pulp__)
+#define SAT_Q15(x) __builtin_pulp_clip_r((x), 32767)
+#else
+#define SAT_Q15(x) ((x) > 32767 ? 32767 : ((x) < -32768 ? -32768 : (x)))
+#endif
 #endif
 
 /**
@@ -638,6 +652,15 @@ void ssm_discretize_q15(
     int t_end = (t_start + chunk < seq_len) ? (t_start + chunk) : seq_len;
 
     for (int t = t_start; t < t_end; t++) {
+        // B and s_x are both independent of m, yet B*s_x was recomputed d_inner
+        // times per (t,d). Hoist it: pure reassociation, bit-exact.
+        int32_t Bs_row[SSM_MAX_D_STATE];
+        // falls back to the un-hoisted path if d_state ever exceeds the bound
+        int use_hoist = (d_state <= SSM_MAX_D_STATE);
+        for (int d = 0; use_hoist && d < d_state; d++) {
+            Bs_row[d] = (int32_t)B_q15[t * d_state + d] * (int32_t)s_x_q15;
+        }
+
         for (int m = 0; m < d_inner; m++) {
             // Get dt value (Q16) and convert to float
             int32_t dt_val = dt_q16[t * d_inner + m];
@@ -662,12 +685,18 @@ void ssm_discretize_q15(
 
                 // dB' = dt * B * phi1(dt * A) * s_x
                 int16_t phi1_val = ssm_phi1_lut_q15[idx];
-                int16_t B_val = B_q15[t * d_state + d];
 
-                // Compute in INT32 to avoid overflow
-                int64_t dB_temp = ((int64_t)dt_val * (int64_t)B_val * (int64_t)phi1_val * (int64_t)s_x_q15) >> 31;
+                // Bs_row[d] == B_q15[t*d_state+d] * s_x_q15, hoisted above.
+                // One factor fewer in the int64 chain; identical value.
+                int64_t dB_temp = use_hoist
+                    ? (((int64_t)dt_val * (int64_t)Bs_row[d] * (int64_t)phi1_val) >> 31)
+                    : (((int64_t)dt_val * (int64_t)B_q15[t * d_state + d]
+                        * (int64_t)phi1_val * (int64_t)s_x_q15) >> 31);
 
-                // Clip to Q15 range
+                // Clip to Q15 range.
+                // NOTE: dB_temp is int64 and can exceed int32 range before clipping,
+                // so SAT_Q15 (p.clip, a 32-bit operation) must NOT be used here --
+                // the implicit narrowing would wrap before the clamp.
                 if (dB_temp > 32767) dB_temp = 32767;
                 if (dB_temp < -32768) dB_temp = -32768;
 
@@ -735,8 +764,7 @@ void ssm_scan_q15(
                 int32_t h_new = h_decay + h_input;
 
                 // Clip to Q15 range
-                if (h_new > 32767) h_new = 32767;
-                if (h_new < -32768) h_new = -32768;
+                h_new = SAT_Q15(h_new);
                 h_q15[m * d_state + d] = (int16_t)h_new;
 
                 // y[t] += C * h

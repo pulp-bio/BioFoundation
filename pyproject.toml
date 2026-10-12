@@ -19,6 +19,7 @@ dependencies = [
   "tqdm",
   "pandas",
   "mne",
+  "pyedflib",
   "asrpy",
   "psutil",
   "pyyaml",

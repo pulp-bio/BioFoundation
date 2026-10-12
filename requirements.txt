@@ -10,6 +10,7 @@ lightning
 tqdm
 pandas
 mne
+pyedflib
 asrpy
 nvidia-nccl-cu11
 peft

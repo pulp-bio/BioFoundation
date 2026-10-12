@@ -17,6 +17,10 @@
 #*                                                                            *
 #* Author:  BioFoundation Contributors                                        *
 #*----------------------------------------------------------------------------*
+# Each corpus is read from here, as written by its make_datasets script. Relocate them
+# all with pretraining_root=/some/dir.
+pretraining_root: ${env:DATA_PATH}/pretraining
+
 data_module:
   _target_: 'data_module.pretraining_data_module.PretrainingDataModule'
   name: "eeg"
@@ -34,15 +38,15 @@ data_module:
   train:
     TUEG:
       _target_: 'datasets.tueg_dataset.TUEGDataset'
-      lmdb_path: '${env:DATA_PATH}/pretraining/TUEG/TUEG.lmdb'
-      keys_path: '${env:DATA_PATH}/pretraining/TUEG/TUEG_keys.txt'
+      lmdb_path: '${pretraining_root}/TUEG/TUEG.lmdb'
+      keys_path: '${pretraining_root}/TUEG/TUEG_keys.txt'
       max_channels: ${model.max_channels}
       sampling_freq: 200
       slice_duration: 30
       use_cache: False
     SEED:
       _target_: 'datasets.lmdb_dataset.LMDBDataset'
-      path: '${env:DATA_PATH}/pretraining/SEED/'
+      path: '${pretraining_root}/SEED/'
       dataset_kind: window
       apply_minmax: True
       apply_zero_padding: True
@@ -51,7 +55,7 @@ data_module:
       use_cache: False
     SEED-IV:
       _target_: 'datasets.lmdb_dataset.LMDBDataset'
-      path: '${env:DATA_PATH}/pretraining/SEED-IV/'
+      path: '${pretraining_root}/SEED-IV/'
       dataset_kind: window
       apply_minmax: True
       apply_zero_padding: True
@@ -60,7 +64,7 @@ data_module:
       use_cache: False
     SEED-GER:
       _target_: 'datasets.lmdb_dataset.LMDBDataset'
-      path: '${env:DATA_PATH}/pretraining/SEED-GER/'
+      path: '${pretraining_root}/SEED-GER/'
       dataset_kind: window
       apply_minmax: True
       apply_zero_padding: True
@@ -69,7 +73,7 @@ data_module:
       use_cache: False
     SEED-FRA:
       _target_: 'datasets.lmdb_dataset.LMDBDataset'
-      path: '${env:DATA_PATH}/pretraining/SEED-FRA/'
+      path: '${pretraining_root}/SEED-FRA/'
       dataset_kind: window
       apply_minmax: True
       apply_zero_padding: True
@@ -78,7 +82,7 @@ data_module:
       use_cache: False
     BOAS:
       _target_: 'datasets.lmdb_dataset.LMDBDataset'
-      path: '${env:DATA_PATH}/pretraining/BOAS/'
+      path: '${pretraining_root}/BOAS/'
       dataset_kind: window
       apply_minmax: True
       apply_zero_padding: True
@@ -87,7 +91,7 @@ data_module:
       use_cache: False
     GWD:
       _target_: 'datasets.lmdb_dataset.LMDBDataset'
-      path: '${env:DATA_PATH}/pretraining/GWD/'
+      path: '${pretraining_root}/GWD/'
       dataset_kind: window
       apply_minmax: True
       apply_zero_padding: True
@@ -96,7 +100,7 @@ data_module:
       use_cache: False
     SleepEDFx:
       _target_: 'datasets.lmdb_dataset.LMDBDataset'
-      path: '${env:DATA_PATH}/pretraining/SleepEDFx/'
+      path: '${pretraining_root}/SleepEDFx/'
       dataset_kind: window
       apply_minmax: True
       apply_zero_padding: True
@@ -105,7 +109,7 @@ data_module:
       use_cache: False
     BCI-NER:
       _target_: 'datasets.lmdb_dataset.LMDBDataset'
-      path: '${env:DATA_PATH}/pretraining/BCI-NER/'
+      path: '${pretraining_root}/BCI-NER/'
       dataset_kind: window
       apply_minmax: True
       apply_zero_padding: True

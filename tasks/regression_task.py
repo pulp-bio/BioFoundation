@@ -168,8 +168,10 @@ class RegressionTask(SafetensorsCheckpointMixin, pl.LightningModule):
 
         loss = self.criterion(predictions, batch)
 
+        # update, not a call: calling also computes a per-batch value, which R2Score
+        # cannot do for a single-sample batch. Epoch values are logged at epoch end.
         for metric in self._metrics(split).values():
-            metric(predictions, targets)
+            metric.update(predictions, targets)
 
         self.log(
             f"{split}_loss",

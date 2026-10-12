@@ -4,6 +4,10 @@ Copyright (C) 2025 ETH Zurich, Switzerland. SPDX-License-Identifier: Apache-2.0.
 
 This directory contains scripts for processing raw datasets into formats suitable for efficient training and evaluation.
 
+## S-CEReBrO corpora (LMDB with electrode coordinates)
+
+S-CEReBrO reads LMDB files whose samples carry each channel's electrode-pair coordinates, so it has its own scripts, including for TUAB and TUEG: `make_tuab.py`, `make_tueg.py`, `make_chb_mit_pickles.py` and `make_chb_mit.py`, `unrar_isruc.py` and `make_isruc.py`, and the other `make_<corpus>.py` files built on [`common.py`](common.py). They neither read nor write the HDF5 files produced below, which the other model families keep using unchanged. The [S-CEReBrO documentation](../docs/model/SCEReBrO.md#preprocessing) lists every corpus, its steps and where the configs expect it.
+
 ## TUEG preparation (`make_tueg_bipolar.py`)
 
 We provide an example script on how to format TUEG into bipolar. This is then used by our pre-training scripts. Make sure to change all of the occurences of `#CHANGEME`. The main processing script follow a very similar pattern to the one explained for `process_raw_eeg.py` here below.

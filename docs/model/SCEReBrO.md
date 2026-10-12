@@ -49,16 +49,47 @@ Datasets are prepared into LMDB with [`make_datasets`](../../make_datasets/). Ea
 
 Neonate windows are labelled from the seconds they contain: a window is a seizure if any of its seconds is, and is skipped if any second lacks annotator consensus. The reference implementation gave window *k* the label of second *k* although the window spans seconds 5*k* to 5*k* + 5, so neonate results are not directly comparable with those produced by its preprocessing.
 
+Every script reads the raw corpus from `--input_dir` and writes to `--output_dir`; neither has a default. The configs read the results from `$DATA_PATH` laid out as below, and `dataset_root=` for a fine-tuning corpus or `pretraining_root=` for all pre-training corpora points them anywhere else.
+
+| Corpus | Steps, as `python -m make_datasets.<script>` | Default location |
+| --- | --- | --- |
+| TUAB | `make_tuab` | `$DATA_PATH/finetuning/TUAB` |
+| CHB-MIT | `make_chb_mit_pickles` on the raw EDFs, then `make_chb_mit` on its output | `$DATA_PATH/finetuning/CHB-MIT` |
+| Neonate | `make_neonate` | `$DATA_PATH/finetuning/Neonate` |
+| PhysioNet-MI | `make_physionet_mi` | `$DATA_PATH/finetuning/PhysioNet-MI` |
+| SHU-MI | `make_shu_mi` | `$DATA_PATH/finetuning/SHU-MI` |
+| STEW | `make_stew` | `$DATA_PATH/finetuning/STEW` |
+| Mumtaz | `make_mumtaz` | `$DATA_PATH/finetuning/Mumtaz` |
+| MentalArithmetic | `make_mental_arithmetic` | `$DATA_PATH/finetuning/MentalArithmetic` |
+| SEED-V | `make_seed_v` | `$DATA_PATH/finetuning/SEED-V` |
+| ISRUC | `unrar_isruc` on the downloaded archives, then `make_isruc` | `$DATA_PATH/finetuning/ISRUC` |
+| SEED-VIG | `make_seed_vig`, which also takes `--labels_dir` | `$DATA_PATH/finetuning/SEED-VIG` |
+| TUEG | `make_tueg`, which also takes `--tuab_dir` | `$DATA_PATH/pretraining/TUEG` |
+| SEED, SEED-IV | `make_seed`, once per corpus | `$DATA_PATH/pretraining/SEED`, `.../SEED-IV` |
+| SEED-FRA, SEED-GER | `make_seed_fra_ger`, once per corpus | `$DATA_PATH/pretraining/SEED-FRA`, `.../SEED-GER` |
+| BOAS, GWD, SleepEDFx, BCI-NER | `make_boas`, `make_gwd`, `make_sleepedfx`, `make_bci_ner` | `$DATA_PATH/pretraining/<corpus>` |
+
+`make_chb_mit_pickles` reads EDFs with `pyedflib`, as the reference does. `unrar_isruc` needs the `rarfile` package and an extraction tool such as `unrar`; extracting the archives with any such tool gives the same layout.
+
 ```bash
 python -m make_datasets.make_tuab \
-  --input_dir /raw/tuab --output_dir $DATA_PATH/finetuning/TUAB
+  --input_dir /path/to/raw/tuab --output_dir $DATA_PATH/finetuning/TUAB
+
+python -m make_datasets.make_chb_mit_pickles \
+  --input_dir /path/to/raw/chb-mit --output_dir /path/to/chb-mit-pickles
+python -m make_datasets.make_chb_mit \
+  --input_dir /path/to/chb-mit-pickles --output_dir $DATA_PATH/finetuning/CHB-MIT
+
+python -m make_datasets.unrar_isruc --input_dir /path/to/raw/isruc
+python -m make_datasets.make_isruc \
+  --input_dir /path/to/raw/isruc --output_dir $DATA_PATH/finetuning/ISRUC
 
 # make_tueg holds out every subject found in the raw TUAB corpus so they cannot leak
 # into the TUAB fine-tuning splits. Pass --allow_tuab_overlap only when TUAB is not
 # among the downstream datasets.
 python -m make_datasets.make_tueg \
-  --input_dir /raw/tueg --output_dir $DATA_PATH/pretraining/TUEG \
-  --tuab_dir /raw/tuab
+  --input_dir /path/to/raw/tueg --output_dir $DATA_PATH/pretraining/TUEG \
+  --tuab_dir /path/to/raw/tuab
 ```
 
 ### Architecture Overview

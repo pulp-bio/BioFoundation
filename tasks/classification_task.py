@@ -219,10 +219,12 @@ class ClassificationTask(SafetensorsCheckpointMixin, pl.LightningModule):
         scores = probabilities[:, 1] if self.num_classes == 2 else probabilities
 
         metrics = self._metrics(split)
+        # update, not a call: per-batch values are never used, and AUROC on a batch
+        # holding one class is undefined. Epoch values are logged at epoch end.
         for name in self.LABEL_METRICS:
-            metrics[name](predictions, labels)
+            metrics[name].update(predictions, labels)
         for name in self.SCORE_METRICS:
-            metrics[name](scores, labels)
+            metrics[name].update(scores, labels)
 
         self.log(
             f"{split}_loss",

@@ -16,7 +16,6 @@
 #*                                                                            *
 #* Author:  BioFoundation Contributors                                        *
 #*                                                                            *
-#* Imported from the S-CEReBrO reference implementation (TimeFM).             *
 #*----------------------------------------------------------------------------*
 
 """Preprocess the Sleep-EDFx pre-training corpus into a pooled LMDB."""

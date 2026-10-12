@@ -16,5 +16,4 @@
 #*                                                                            *
 #* Author:  BioFoundation Contributors                                        *
 #*                                                                            *
-#* Imported from the S-CEReBrO reference implementation (TimeFM).             *
 #*----------------------------------------------------------------------------*

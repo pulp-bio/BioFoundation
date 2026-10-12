@@ -16,7 +16,6 @@
 #*                                                                            *
 #* Author:  BioFoundation Contributors                                        *
 #*                                                                            *
-#* Imported from the S-CEReBrO reference implementation (TimeFM).             *
 #*----------------------------------------------------------------------------*
 
 """Preprocess the Helsinki neonatal seizure corpus into train/val/test LMDBs."""
@@ -39,6 +38,7 @@ from make_datasets.common import (
 WINDOW_SECONDS = 5
 WINDOW_SAMPLES = SAMPLING_FREQ * WINDOW_SECONDS
 DROPPED_CHANNELS = ["ECG EKG", "Resp Effort", "ECG EKG-REF", "Resp Effort-REF"]
+# As named in the Zenodo release; a later version of the dataset may rename them.
 ANNOTATION_FILES = ["annotations_2017_A.csv", "annotations_2017_B.csv", "annotations_2017_C.csv"]
 TIE_BREAK_SEED = 0
 

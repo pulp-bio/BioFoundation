@@ -16,7 +16,6 @@
 #*                                                                            *
 #* Author:  BioFoundation Contributors                                        *
 #*                                                                            *
-#* Imported from the S-CEReBrO reference implementation (TimeFM).             *
 #*----------------------------------------------------------------------------*
 
 """Preprocess the CHB-MIT seizure corpus into train/val/test LMDBs.

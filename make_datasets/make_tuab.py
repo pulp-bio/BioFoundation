@@ -16,7 +16,6 @@
 #*                                                                            *
 #* Author:  BioFoundation Contributors                                        *
 #*                                                                            *
-#* Imported from the S-CEReBrO reference implementation (TimeFM).             *
 #*----------------------------------------------------------------------------*
 
 """Preprocess the TUAB abnormality-detection corpus into train/val/test LMDBs."""

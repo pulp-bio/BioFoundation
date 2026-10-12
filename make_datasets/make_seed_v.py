@@ -16,7 +16,6 @@
 #*                                                                            *
 #* Author:  BioFoundation Contributors                                        *
 #*                                                                            *
-#* Imported from the S-CEReBrO reference implementation (TimeFM).             *
 #*----------------------------------------------------------------------------*
 
 """Preprocess the SEED-V emotion corpus into train/val/test LMDBs."""

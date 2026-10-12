@@ -16,10 +16,9 @@
 #*                                                                            *
 #* Author:  BioFoundation Contributors                                        *
 #*                                                                            *
-#* Imported from the S-CEReBrO reference implementation (TimeFM).             *
 #*----------------------------------------------------------------------------*
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import hydra
 import pytorch_lightning as pl

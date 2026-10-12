@@ -290,7 +290,7 @@ Script-specific arguments are listed in each dataset's section.
 
 **Neonate** (`make_neonate.py`)
 - **Download**: [Neonatal EEG recordings with seizure annotations](https://zenodo.org/records/2547147).
-- **Input**: the folder holding `eeg1.edf` to `eeg79.edf` and `annotations_2017_A.csv`, `annotations_2017_B.csv` and `annotations_2017_C.csv`, directly in it. The annotation files are read by these names, the ones the reference implementation used.
+- **Input**: the folder holding `eeg1.edf` to `eeg79.edf` and `annotations_2017_A.csv`, `annotations_2017_B.csv` and `annotations_2017_C.csv`, directly in it. These are the annotation file names of the release linked above; a later version of the dataset may rename them, in which case update `ANNOTATION_FILES` in `make_neonate.py` to match.
 - **Writes**: 5 s windows at 200 Hz in an 18-channel bipolar montage. A second is labelled by the consensus of the three annotators. A window is a seizure (1) if any of its seconds is, and is skipped if any of its seconds has no consensus. The reference implementation instead labelled window *k* with second *k*, so results are not directly comparable with its preprocessing.
 - **Split**: fixed subject lists in the script: 61 train, 8 validation, 10 test.
 

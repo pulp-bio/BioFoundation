@@ -16,7 +16,6 @@
 #*                                                                            *
 #* Author:  BioFoundation Contributors                                        *
 #*                                                                            *
-#* Imported from the S-CEReBrO reference implementation (TimeFM).             *
 #*----------------------------------------------------------------------------*
 
 """Preprocess the SEED-FRA and SEED-GER pre-training corpora into a pooled LMDB."""
@@ -24,7 +23,6 @@
 import os
 
 import mne
-import numpy as np
 
 from make_datasets.common import (
     SAMPLING_FREQ,

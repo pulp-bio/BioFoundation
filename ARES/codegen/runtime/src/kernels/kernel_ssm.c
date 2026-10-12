@@ -28,6 +28,7 @@
 // Maps to GAP9 SumDotpSS intrinsic for 4-element dot products
 #ifndef CONV1D_USE_SIMD
 #define CONV1D_USE_SIMD 1  // 1 = enable SIMD path for kernel_size=4, 0 = scalar only
+#endif
 
 // upper bound for the hoisted B*s_x row (FEMBA uses d_state=16)
 #define SSM_MAX_D_STATE 64
@@ -41,7 +42,6 @@
 #define SAT_Q15(x) __builtin_pulp_clip_r((x), 32767)
 #else
 #define SAT_Q15(x) ((x) > 32767 ? 32767 : ((x) < -32768 ? -32768 : (x)))
-#endif
 #endif
 
 /**

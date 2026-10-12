@@ -165,7 +165,7 @@ S-CEReBrO reads LMDB files in which every sample carries, besides the signal, th
   ```bash
   python -m make_datasets.<script> --input_dir /path/to/raw --output_dir /path/to/output
   ```
-- Fine-tuning scripts write `train.lmdb`, `val.lmdb` and `test.lmdb`, each with an index file (`train.meta.json` and so on). The split is fixed inside each script, at subject or recording level, so it is identical for every run and every model. It is the split of the reference implementation's CBraMod mode, except where a dataset section says otherwise.
+- Fine-tuning scripts write `train.lmdb`, `val.lmdb` and `test.lmdb`, each with an index file (`train.meta.json` and so on). The split is fixed inside each script, at subject or recording level, so it is identical for every run and every model.
 - Pre-training scripts write one pooled `all.lmdb` with `all.meta.json`; the pre-training data module holds out its own validation fraction. TUEG writes `TUEG.lmdb` and `TUEG_keys.txt` instead.
 - The S-CEReBrO configs read each output from the default location in the tables below. Pass `dataset_root=/path` for one fine-tuning corpus, or `pretraining_root=/path` for all pre-training corpora, to read them from elsewhere.
 
@@ -271,7 +271,7 @@ Script-specific arguments are listed in each dataset's section.
 - **Download**: [TUH Abnormal EEG Corpus](https://isip.piconepress.com/projects/nedc/html/tuh_eeg/#c_tuab).
 - **Input**: the release's `edf` folder, containing `train/` and `eval/`, each with `normal/01_tcp_ar/` and `abnormal/01_tcp_ar/`.
 - **Writes**: 10 s windows at 200 Hz in the 22-channel TCP bipolar montage, labelled normal (0) or abnormal (1).
-- **Split**: the official `eval` set is the test split. Training subjects are divided 80/20 into train and validation by subject (seed 4523), so a subject with both normal and abnormal sessions stays in one split. The reference shuffled normal and abnormal subjects separately.
+- **Split**: the official `eval` set is the test split. Training subjects are divided 80/20 into train and validation by subject (seed 4523), so a subject with both normal and abnormal sessions stays in one split. 
   ```bash
   python -m make_datasets.make_tuab --input_dir /raw_data/TUAB/edf --output_dir $DATA_PATH/finetuning/TUAB
   ```
@@ -291,7 +291,7 @@ Script-specific arguments are listed in each dataset's section.
 **Neonate** (`make_neonate.py`)
 - **Download**: [Neonatal EEG recordings with seizure annotations](https://zenodo.org/records/2547147).
 - **Input**: the folder holding `eeg1.edf` to `eeg79.edf` and `annotations_2017_A.csv`, `annotations_2017_B.csv` and `annotations_2017_C.csv`, directly in it. These are the annotation file names of the release linked above; a later version of the dataset may rename them, in which case update `ANNOTATION_FILES` in `make_neonate.py` to match.
-- **Writes**: 5 s windows at 200 Hz in an 18-channel bipolar montage. A second is labelled by the consensus of the three annotators. A window is a seizure (1) if any of its seconds is, and is skipped if any of its seconds has no consensus. The reference implementation instead labelled window *k* with second *k*, so results are not directly comparable with its preprocessing.
+- **Writes**: 5 s windows at 200 Hz in an 18-channel bipolar montage. A second is labelled by the consensus of the three annotators. A window is a seizure (1) if any of its seconds is, and is skipped if any of its seconds has no consensus.
 - **Split**: fixed subject lists in the script: 61 train, 8 validation, 10 test.
 
 **PhysioNet-MI** (`make_physionet_mi.py`)
@@ -316,7 +316,7 @@ Script-specific arguments are listed in each dataset's section.
 - **Download**: [Mumtaz2016 on figshare](https://figshare.com/articles/dataset/EEG_Data_New/4244171).
 - **Input**: the folder holding the `.edf` files, named like `H S1 EC.edf` and `MDD S1 EO.edf`, directly in it. `TASK` recordings are ignored.
 - **Writes**: 5 s windows at 200 Hz, 19 channels referenced to the linked ears, labelled healthy (0) or depressed (1).
-- **Split**: by subject, separately for healthy and depressed subjects, in sorted order of subject name. The first 20 healthy and 21 depressed subjects train, the next 4 and 5 validate, and the rest test. The reference cut the file list instead; that gives the same split when every subject has both recordings.
+- **Split**: by subject, separately for healthy and depressed subjects, in sorted order of subject name. The first 20 healthy and 21 depressed subjects train, the next 4 and 5 validate, and the rest test. 
 
 **MentalArithmetic** (`make_mental_arithmetic.py`)
 - **Download**: [EEG During Mental Arithmetic Tasks](https://physionet.org/content/eegmat/1.0.0/).

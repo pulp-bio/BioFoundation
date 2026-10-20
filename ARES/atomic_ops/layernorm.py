@@ -420,8 +420,8 @@ def layernorm_int8_fixed_point(input_int8, weight_fp32, bias_fp32, scale_input, 
             # Convert to FP32 for affine transform
             x_normalized = float(x_centered) / float(std)
 
-            # Apply scale_input to convert to original FP32 domain
-            x_normalized *= scale_input
+            # (x - mean) / std is scale-free: scale_input cancels (kept in sync with
+            # the C i-LayerNorm kernel in codegen/runtime/src/ops/op_norm.c).
 
             # Apply affine transform (gamma * normalized + beta)
             output_fp32[v, i] = weight_fp32[i] * x_normalized + bias_fp32[i]

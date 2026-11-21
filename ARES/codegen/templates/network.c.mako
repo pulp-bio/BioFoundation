@@ -7130,6 +7130,12 @@ for spec in reversed(layer_specs):
         printf("ARES_OUT %d %d\n", i, (int)a->${final_buffer or 'output_int8'}[i]);
 % else:
         printf("ARES_OUT %d %a\n", i, (double)a->${final_buffer or 'output_fp32'}[i]);
+        {   /* raw IEEE-754 bits as well: newlib (bare-metal R5F) printf has no %a */
+            float ares_f = a->${final_buffer or 'output_fp32'}[i];
+            uint32_t ares_u;
+            memcpy(&ares_u, &ares_f, sizeof ares_u);
+            printf("ARES_OUTX %d %08lx\n", i, (unsigned long)ares_u);
+        }
 % endif
     }
 #endif

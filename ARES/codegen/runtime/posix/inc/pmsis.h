@@ -37,6 +37,8 @@
 __asm__(".macro fence args:vararg\n dmb ish\n .endm\n");
 #elif defined(__x86_64__) || defined(__i386__)
 __asm__(".macro fence args:vararg\n mfence\n .endm\n");
+#elif defined(__arm__)
+__asm__(".macro fence args:vararg\n dmb\n .endm\n");
 #endif
 
 /* ---- section attributes (all memory is ordinary RAM here) ---- */

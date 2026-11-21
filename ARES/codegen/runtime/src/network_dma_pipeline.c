@@ -2157,8 +2157,8 @@ linear_3d_apply_fusions:
         return;
     }
 
-    const size_t single_tile_size = cfg->l1_output_size + cfg->l1_weight_size;
-    const size_t required_l1_size = cfg->l1_input_size + 2 * single_tile_size;
+    const size_t single_tile_size = TILE_ALIGN_UP(cfg->l1_output_size) + TILE_ALIGN_UP(cfg->l1_weight_size);
+    const size_t required_l1_size = TILE_ALIGN_UP(cfg->l1_input_size) + 2 * single_tile_size;
 
     // ------------------------------------------------------------------------
     // 2D Linear (batch_tokens == 1): K-tiling or N-only tiling
@@ -2536,8 +2536,8 @@ execution (no tiling)
  */
 void linear_fp32_tiled_l1_pipeline(linear_fp32_pipeline_config_t *cfg) {
     // Check L1 buffer availability
-    const size_t single_tile_size = cfg->l1_output_size + cfg->l1_weight_size;
-    const size_t required_l1_size = cfg->l1_input_size + 2 * single_tile_size;
+    const size_t single_tile_size = TILE_ALIGN_UP(cfg->l1_output_size) + TILE_ALIGN_UP(cfg->l1_weight_size);
+    const size_t required_l1_size = TILE_ALIGN_UP(cfg->l1_input_size) + 2 * single_tile_size;
 
     if (!cfg->l1_buffer || cfg->l1_buffer_size < required_l1_size) {
         // L1 buffer not available or too small - fallback to L2

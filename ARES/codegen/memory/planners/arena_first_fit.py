@@ -11,6 +11,13 @@ from .planner_base import PlannerBase
 from .planner_result import PlannerResult
 
 
+BUFFER_ALIGN_BYTES = 8
+
+
+def _align_up(x: int, a: int = BUFFER_ALIGN_BYTES) -> int:
+    return (x + a - 1) // a * a
+
+
 class ArenaFirstFitPlanner(PlannerBase):
     """First-fit arena planner used as the default memory-planning policy."""
 
@@ -195,11 +202,13 @@ class ArenaFirstFitPlanner(PlannerBase):
                     busy_ranges.append((off, off + sz))
             busy_ranges.sort()
 
+            # Offsets are kept 8-byte aligned so FP32/INT32 buffers are never misaligned
+            # (cores with strict alignment, e.g. Arm VFP load/store, fault otherwise).
             candidate_addr = 0
             for b_start, b_end in busy_ranges:
                 if candidate_addr + size <= b_start:
                     break
-                candidate_addr = max(candidate_addr, b_end)
+                candidate_addr = _align_up(max(candidate_addr, b_end))
 
             offsets[name] = candidate_addr
             allocated_blocks.append((candidate_addr, size, start, end))

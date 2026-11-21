@@ -4060,6 +4060,194 @@ static void conv1d_silu_transpose_worker(void *arg) {
     }
     pi_cl_team_barrier();
 }
+
+/* ---
+ * Exact (golden-matching) MambaWrapper workers.
+ * Bit-level reimplementation of tools/int8_inference.py::_run_mamba_block steps 2-5
+ * (atomic_ops/conv1d_depthwise.py::conv1d_depthwise_int8_fixedpoint, silu LUT,
+ * atomic_ops/ssm.py::ssm_layer_forward_int8_imamba, Q13 SiLU gate).
+ * --- */
+typedef struct {
+    const int8_t *input;      // [B, d_inner, L] transposed x branch
+    const int8_t *weights;    // [d_inner, kernel_size]
+    const int32_t *bias;      // [d_inner] (round(bias / (s_xz * s_conv_w)))
+    const int8_t *silu_lut;   // [256], generate_silu_lut_int8(s_conv_out, s_silu_out)
+    int8_t *output;           // [B, L, d_inner]
+    int batch, channels, length, kernel_size;
+    int32_t requant_mul;      // round(s_xz * s_conv_w / s_conv_out * 2^24)
+} mamba_conv1d_silu_exact_args_t;
+
+static void mamba_conv1d_silu_exact_worker(void *arg) {
+    mamba_conv1d_silu_exact_args_t *a = (mamba_conv1d_silu_exact_args_t *)arg;
+    const int core_id = pi_core_id();
+    const int total = a->batch * a->channels;            // parallel over (batch, channel)
+    const int per_core = (total + NUM_CORES - 1) / NUM_CORES;
+    const int start = core_id * per_core;
+    const int end = (start + per_core > total) ? total : start + per_core;
+    const int ks = a->kernel_size;
+    for (int bc = start; bc < end; bc++) {
+        const int b = bc / a->channels, d = bc % a->channels;
+        const int8_t *x = a->input + (b * a->channels + d) * a->length;
+        const int8_t *w = a->weights + d * ks;
+        const int32_t bias = a->bias ? a->bias[d] : 0;
+        for (int t = 0; t < a->length; t++) {
+            int32_t acc = bias;
+            for (int k = 0; k < ks; k++) {
+                const int t_in = t - (ks - 1) + k;          // causal: left pad ks-1
+                if (t_in >= 0) acc += (int32_t)x[t_in] * (int32_t)w[k];
+            }
+            int32_t q = div_round_nearest_even_s64((int64_t)acc * (int64_t)a->requant_mul, (int64_t)1 << 24);
+            if (q > 127) q = 127;
+            if (q < -128) q = -128;
+            a->output[(b * a->length + t) * a->channels + d] = a->silu_lut[q + 128];
+        }
+    }
+    pi_cl_team_barrier();
+}
+
+typedef struct {
+    const int8_t *x_int8;             // SSM input (SiLU output) [B, L, d_inner]
+    const int8_t *xz_proj;            // in_proj output [B, L, 2*d_inner]; z = second half
+    int8_t *output_int8;              // gated output [B, L, d_inner]
+    const int8_t *x_proj_weight;      // [dt_rank + 2*d_state, d_inner]
+    const int8_t *dt_proj_weight;     // [d_inner, dt_rank]
+    const int32_t *dt_proj_bias_q16_16;
+    const int16_t *A_q15;             // [d_state, d_inner]
+    const int16_t *D_q15;             // [d_inner]
+    const int16_t *softplus_lut;      // Q8.8 [256]
+    const int16_t *exp_lut;           // Q15 [256]
+    const int16_t *silu_gate_lut_q13; // Q13 [256]
+    int32_t *proj_all;                // scratch [L, proj_size]   (must not alias xz_proj)
+    int16_t *B_all, *C_all;           // scratch [L, d_state]     (must not alias xz_proj)
+    int batch, seq_len, d_inner, d_state, dt_rank;
+    int64_t dt_scale_q;
+    int32_t bc_scale_factor, output_scale_q;
+} mamba_imamba_ssm_args_t;
+
+static void mamba_imamba_ssm_gated_worker(void *arg) {
+    mamba_imamba_ssm_args_t *a = (mamba_imamba_ssm_args_t *)arg;
+    const int core_id = pi_core_id();
+    const int L = a->seq_len, M = a->d_inner, NS = a->d_state, R = a->dt_rank;
+    const int P = R + 2 * NS;
+    for (int b = 0; b < a->batch; b++) {
+        const int8_t *xb = a->x_int8 + b * L * M;
+        // Stage 1: proj_all[t][j] = x[t] . W_xproj[j]   (parallel over t*P)
+        {
+            const int total = L * P, per = (total + NUM_CORES - 1) / NUM_CORES;
+            const int s0 = core_id * per, s1 = (s0 + per > total) ? total : s0 + per;
+            for (int i = s0; i < s1; i++) {
+                const int t = i / P, j = i % P;
+                const int8_t *xr = xb + t * M, *wr = a->x_proj_weight + j * M;
+                int32_t acc = 0;
+                for (int k = 0; k < M; k++) acc += (int32_t)xr[k] * (int32_t)wr[k];
+                a->proj_all[i] = acc;
+            }
+        }
+        pi_cl_team_barrier();
+        // Stage 2: B, C in Q15 (parallel over t)
+        {
+            const int per = (L + NUM_CORES - 1) / NUM_CORES;
+            const int s0 = core_id * per, s1 = (s0 + per > L) ? L : s0 + per;
+            for (int t = s0; t < s1; t++) {
+                const int32_t *pt = a->proj_all + t * P;
+                for (int n = 0; n < NS; n++) {
+                    int64_t bv = ((int64_t)pt[R + n] * a->bc_scale_factor) >> 16;
+                    int64_t cv = ((int64_t)pt[R + NS + n] * a->bc_scale_factor) >> 16;
+                    a->B_all[t * NS + n] = (int16_t)(bv > 32767 ? 32767 : (bv < -32768 ? -32768 : bv));
+                    a->C_all[t * NS + n] = (int16_t)(cv > 32767 ? 32767 : (cv < -32768 ? -32768 : cv));
+                }
+            }
+        }
+        pi_cl_team_barrier();
+        // Stage 3: per channel m (independent): dt via dt_proj+softplus, scan, gate
+        {
+            const int per = (M + NUM_CORES - 1) / NUM_CORES;
+            const int s0 = core_id * per, s1 = (s0 + per > M) ? M : s0 + per;
+            for (int m = s0; m < s1; m++) {
+                int32_t h[16];
+                for (int n = 0; n < NS && n < 16; n++) h[n] = 0;
+                const int8_t *wdt = a->dt_proj_weight + m * R;
+                const int32_t D_val = a->D_q15[m];
+                for (int t = 0; t < L; t++) {
+                    const int32_t *pt = a->proj_all + t * P;
+                    int32_t dt_acc = 0;
+                    for (int r = 0; r < R; r++) dt_acc += (pt[r] >> 8) * (int32_t)wdt[r];
+                    int64_t dtv = (((int64_t)dt_acc * a->dt_scale_q) >> 24) + (int64_t)a->dt_proj_bias_q16_16[m];
+                    int64_t li = (dtv * 10) >> 16;
+                    if (li > 127) li = 127;
+                    if (li < -128) li = -128;
+                    const int32_t dt_val = a->softplus_lut[li + 128];
+                    const int32_t x_i8 = xb[t * M + m];
+                    const int16_t *Bt = a->B_all + t * NS, *Ct = a->C_all + t * NS;
+                    int32_t y_acc = 0;
+                    for (int n = 0; n < NS; n++) {
+                        const int32_t dtA_q15 = (dt_val * (int32_t)a->A_q15[n * M + m]) >> 8;
+                        int32_t ei = (dtA_q15 * 10) >> 15;
+                        if (ei > 127) ei = 127;
+                        if (ei < -128) ei = -128;
+                        const int32_t dA = a->exp_lut[ei + 128];
+                        const int32_t dB = (dt_val * (int32_t)Bt[n]) >> 8;
+                        int32_t hn = ((dA * h[n]) >> 15) + ((dB * x_i8) >> 7);
+                        if (hn > 32767) hn = 32767;
+                        if (hn < -32768) hn = -32768;
+                        h[n] = hn;
+                        y_acc += ((int32_t)Ct[n] * hn) >> 15;
+                    }
+                    y_acc += D_val * x_i8;
+                    int64_t ys = ((int64_t)y_acc * a->output_scale_q + ((int64_t)1 << 23)) >> 24;
+                    if (ys > 127) ys = 127;
+                    if (ys < -128) ys = -128;
+                    // Gate: y * silu_q13(z), rounded >> 13
+                    const int8_t z = a->xz_proj[(b * L + t) * 2 * M + M + m];
+                    int32_t g = ((int32_t)ys * (int32_t)a->silu_gate_lut_q13[(int)z + 128] + (1 << 12)) >> 13;
+                    if (g > 127) g = 127;
+                    if (g < -128) g = -128;
+                    a->output_int8[(b * L + t) * M + m] = (int8_t)g;
+                }
+            }
+        }
+        pi_cl_team_barrier();
+    }
+}
+
+// Bidirectional combine matching _run_mamba_wrapper: int8 saturating add when all
+// scales match, otherwise dequantise -> add -> requantise.
+typedef struct {
+    int8_t *output;            // in/out: fwd output
+    const int8_t *rev_out;     // reverse-direction output (sequence-reversed)
+    const int8_t *residual;    // optional input residual (NULL = none)
+    int batch, seq_len, d_model;
+    int float_path;
+    float s_fwd, s_rev, s_res, s_out;
+} mamba_bidir_combine_args_t;
+
+static void mamba_bidir_combine_worker(void *arg) {
+    mamba_bidir_combine_args_t *a = (mamba_bidir_combine_args_t *)arg;
+    const int core_id = pi_core_id();
+    const int total = a->batch * a->seq_len;
+    const int per = (total + NUM_CORES - 1) / NUM_CORES;
+    const int s0 = core_id * per, s1 = (s0 + per > total) ? total : s0 + per;
+    for (int i = s0; i < s1; i++) {
+        const int b = i / a->seq_len, t = i % a->seq_len;
+        const int o = (b * a->seq_len + t) * a->d_model;
+        const int r = (b * a->seq_len + (a->seq_len - 1 - t)) * a->d_model;
+        for (int d = 0; d < a->d_model; d++) {
+            int32_t q;
+            if (!a->float_path) {
+                q = (int32_t)a->output[o + d] + (int32_t)a->rev_out[r + d];
+                if (a->residual) q += (int32_t)a->residual[o + d];
+            } else {
+                float v = (float)a->output[o + d] * a->s_fwd + (float)a->rev_out[r + d] * a->s_rev;
+                if (a->residual) v += (float)a->residual[o + d] * a->s_res;
+                q = qround(v / a->s_out);
+            }
+            if (q > 127) q = 127;
+            if (q < -128) q = -128;
+            a->output[o + d] = (int8_t)q;
+        }
+    }
+    pi_cl_team_barrier();
+}
 % endif
 
 /* ---
@@ -4132,6 +4320,34 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
     int block_idx = -1;
 % for idx, spec in enumerate([s for s in layer_specs if s.get('op') == 'mamba_wrapper']):
     if (layer_idx == ${layer_specs.index(spec)}) block_idx = ${idx};
+% endfor
+
+    // Implicit input residual inside the wrapper (disabled when the model has an explicit residual Add)
+    int add_input_residual = 1;
+% for idx, spec in enumerate([s for s in layer_specs if s.get('op') == 'mamba_wrapper']):
+% if not spec.get('use_residual', True):
+    if (block_idx == ${idx}) add_input_residual = 0;
+% endif
+% endfor
+    (void)add_input_residual;
+
+    // Exact per-direction quantisation parameters [0]=fwd, [1]=rev (from the extractor via
+    // codegen/layers/mamba_handlers.py; same formulas as tools/int8_inference.py).
+    float q_in_comb[2] = {0}, q_out_comb[2] = {0}, q_dir_out[2] = {0};
+    int32_t q_conv_mul[2] = {0}, q_bc[2] = {0}, q_out_q[2] = {0};
+    int64_t q_dt_q[2] = {0};
+% for idx, spec in enumerate([s for s in layer_specs if s.get('op') == 'mamba_wrapper']):
+    if (block_idx == ${idx}) {
+%   for di, dn in enumerate(['fwd', 'rev']):
+        q_in_comb[${di}] = ${'%.9e' % spec[dn + '_q_in_comb']}f;
+        q_out_comb[${di}] = ${'%.9e' % spec[dn + '_q_out_comb']}f;
+        q_dir_out[${di}] = ${'%.9e' % spec[dn + '_q_dir_out']}f;
+        q_conv_mul[${di}] = ${spec[dn + '_q_conv_mul']};
+        q_bc[${di}] = ${spec[dn + '_q_bc_scale_factor']};
+        q_out_q[${di}] = ${spec[dn + '_q_output_scale_q']};
+        q_dt_q[${di}] = ${spec[dn + '_q_dt_scale_q']}LL;
+%   endfor
+    }
 % endfor
 
     // Get L3 weight addresses based on block index
@@ -4273,9 +4489,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                     .output_stride = total_in_proj_out,
                     .batch_tokens = B * L,
                     .tile_out_features = l1_tile_out,
-                    .scale_in = scale_in,
-                    .scale_w = scale_in * 0.05f,  // Approximate weight scale
-                    .scale_out = scale_in
+                    .scale_in = 1.0f,
+                    .scale_w = q_in_comb[0],  // exact s_in*s_w/s_xz
+                    .scale_out = 1.0f
                 };
                 linear_pipelined_execute(&pipe_cfg);
             } else {
@@ -4291,9 +4507,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                     .output_stride = total_in_proj_out,
                     .seq_len = 0,
                     .output_layout = 0,
-                    .scale_in = scale_in,
-                    .scale_w = scale_in * 0.05f,  // Approximate weight scale
-                    .scale_out = scale_in
+                    .scale_in = 1.0f,
+                    .scale_w = q_in_comb[0],  // exact s_in*s_w/s_xz
+                    .scale_out = 1.0f
                 };
                 pi_cl_team_fork(NUM_CORES, linear_int8_worker, &proj_args);
             }
@@ -4336,9 +4552,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                     .output_stride = total_in_proj_out,
                     .batch_tokens = B * L,
                     .tile_out_features = l1_tile_out,
-                    .scale_in = scale_in,
-                    .scale_w = scale_in * 0.05f,
-                    .scale_out = scale_in
+                    .scale_in = 1.0f,
+                    .scale_w = q_in_comb[0],  // exact s_in*s_w/s_xz
+                    .scale_out = 1.0f
                 };
                 linear_pipelined_execute(&pipe_cfg);
             } else {
@@ -4353,9 +4569,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                     .output_stride = total_in_proj_out,
                     .seq_len = 0,
                     .output_layout = 0,
-                    .scale_in = scale_in,
-                    .scale_w = scale_in * 0.05f,
-                    .scale_out = scale_in
+                    .scale_in = 1.0f,
+                    .scale_w = q_in_comb[0],  // exact s_in*s_w/s_xz
+                    .scale_out = 1.0f
                 };
                 pi_cl_team_fork(NUM_CORES, linear_int8_worker, &proj_args);
             }
@@ -4390,9 +4606,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                 .output_stride = total_in_proj_out,
                 .batch_tokens = B * L,
                 .tile_out_features = l1_tile_out,
-                .scale_in = scale_in,
-                .scale_w = scale_in * 0.05f,
-                .scale_out = scale_in
+                .scale_in = 1.0f,
+                .scale_w = q_in_comb[0],  // exact s_in*s_w/s_xz
+                .scale_out = 1.0f
             };
             linear_pipelined_execute(&pipe_cfg);
         } else {
@@ -4407,9 +4623,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                 .output_stride = total_in_proj_out,
                 .seq_len = 0,
                 .output_layout = 0,
-                .scale_in = scale_in,
-                .scale_w = scale_in * 0.05f,
-                .scale_out = scale_in
+                .scale_in = 1.0f,
+                .scale_w = q_in_comb[0],  // exact s_in*s_w/s_xz
+                .scale_out = 1.0f
             };
             pi_cl_team_fork(NUM_CORES, linear_int8_worker, &proj_args);
         }
@@ -4434,24 +4650,18 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
         pi_cl_team_fork(NUM_CORES, transpose_x_worker, &trans_args);
     }
 
-    // Step 3: Fused Conv1D + SiLU + Transpose -> ssm_in [B, L, d_inner]
+    // Step 3: Conv1D (exact fixed-point requant) + SiLU LUT + transpose -> ssm_in [B, L, d_inner]
     {
-        conv1d_silu_transpose_args_t cst_args = {
+        mamba_conv1d_silu_exact_args_t cst_args = {
             .input = x_transposed,
             .weights = a->mamba_cur_conv1d_weight,
             .bias = a->mamba_cur_conv1d_bias,
             .silu_lut = a->mamba_cur_silu_lut,
             .output = ssm_in,
-            .batch = B,
-            .channels = d_inner,
-            .length = L,
-            .kernel_size = kernel_size,
-            .causal = 1,
-            .scale_input = scale_in,
-            .scale_weight = scale_in * 0.1f,  // Approximate
-            .scale_output = scale_in
+            .batch = B, .channels = d_inner, .length = L, .kernel_size = kernel_size,
+            .requant_mul = q_conv_mul[0]
         };
-        pi_cl_team_fork(NUM_CORES, conv1d_silu_transpose_worker, &cst_args);
+        pi_cl_team_fork(NUM_CORES, mamba_conv1d_silu_exact_worker, &cst_args);
     }
 
 #ifndef MINIMAL_OUTPUT
@@ -4462,23 +4672,16 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
 
     // Step 4: SSM with gating
     {
-        // OPTIMIZATION: Reuse xz_proj's x-part for small SSM buffers
-        // After transpose, x-part is free (x values copied to x_transposed, z remains for gating)
-        // This saves ~95KB of L2 memory
-        int16_t *h_state_q15 = (int16_t *)xz_proj;  // Reuses x-part
-        int32_t *proj_all = (int32_t *)(h_state_q15 + B * d_inner * d_state);
+        // Exact I-Mamba SSM + gate. Scratch lives AFTER the int8 per-direction buffers
+        // (flip region, dead at this point) -- never inside xz_proj, whose z half is read
+        // by the gate (aliasing it was a data race / corruption in the previous kernel).
+        int32_t *proj_all = (int32_t *)(scratch + int8_per_dir);
         int16_t *B_all = (int16_t *)(proj_all + L * proj_size);
         int16_t *C_all = B_all + L * d_state;
-        // dt_all uses dedicated scratch space (runs concurrently with gating)
-        void *ssm_scratch = (void *)(ssm_in + ssm_inout_size);
-        int16_t *dt_all = (int16_t *)ssm_scratch;
-
-        memset(h_state_q15, 0, B * d_inner * d_state * sizeof(int16_t));
-
-        ssm_gated_args_t ssm_args = {
+        mamba_imamba_ssm_args_t ssm_args = {
             .x_int8 = ssm_in,
+            .xz_proj = xz_proj,
             .output_int8 = ssm_out,
-            .xz_proj = xz_proj,  // Full in_proj output [B*L, 2*d_inner] for z access
             .x_proj_weight = a->mamba_cur_x_proj_weight,
             .dt_proj_weight = a->mamba_cur_dt_proj_weight,
             .dt_proj_bias_q16_16 = a->mamba_cur_dt_proj_bias_q16_16,
@@ -4487,16 +4690,11 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
             .softplus_lut = a->mamba_cur_softplus_lut,
             .exp_lut = a->mamba_cur_exp_lut,
             .silu_gate_lut_q13 = a->mamba_cur_silu_gate_lut_q13,
-            .h_state_q15 = h_state_q15,
-            .proj_all = proj_all,
-            .dt_all = dt_all,
-            .B_all = B_all,
-            .C_all = C_all,
+            .proj_all = proj_all, .B_all = B_all, .C_all = C_all,
             .batch = B, .seq_len = L, .d_inner = d_inner, .d_state = d_state, .dt_rank = dt_rank,
-            .dt_scale_q = 1, .bc_scale_factor = 1, .output_scale_q = 1, .dt_scale_shift = 0,
-            .core0_instr_out = NULL  // IPC measurement disabled
+            .dt_scale_q = q_dt_q[0], .bc_scale_factor = q_bc[0], .output_scale_q = q_out_q[0]
         };
-        pi_cl_team_fork(NUM_CORES, ssm_gated_worker, &ssm_args);
+        pi_cl_team_fork(NUM_CORES, mamba_imamba_ssm_gated_worker, &ssm_args);
     }
 
 #ifndef MINIMAL_OUTPUT
@@ -4560,9 +4758,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                     .output_stride = d_model,
                     .batch_tokens = B * L,
                     .tile_out_features = l1_tile_out_proj,
-                    .scale_in = scale_in,
-                    .scale_w = scale_in * 0.02f,
-                    .scale_out = scale_out
+                    .scale_in = 1.0f,
+                    .scale_w = q_out_comb[0],  // exact s_ssm*s_w/s_out
+                    .scale_out = 1.0f
                 };
                 linear_pipelined_execute(&out_pipe_cfg);
             } else {
@@ -4577,9 +4775,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                     .output_stride = d_model,
                     .seq_len = 0,
                     .output_layout = 0,
-                    .scale_in = scale_in,
-                    .scale_w = scale_in * 0.02f,
-                    .scale_out = scale_out
+                    .scale_in = 1.0f,
+                    .scale_w = q_out_comb[0],  // exact s_ssm*s_w/s_out
+                    .scale_out = 1.0f
                 };
                 pi_cl_team_fork(NUM_CORES, linear_int8_worker, &out_args);
             }
@@ -4614,9 +4812,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                 .output_stride = d_model,
                 .batch_tokens = B * L,
                 .tile_out_features = l1_tile_out_proj,
-                .scale_in = scale_in,
-                .scale_w = scale_in * 0.02f,
-                .scale_out = scale_out
+                .scale_in = 1.0f,
+                .scale_w = q_out_comb[0],  // exact s_ssm*s_w/s_out
+                .scale_out = 1.0f
             };
             linear_pipelined_execute(&out_pipe_cfg);
         } else {
@@ -4631,9 +4829,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                 .output_stride = d_model,
                 .seq_len = 0,
                 .output_layout = 0,
-                .scale_in = scale_in,
-                .scale_w = scale_in * 0.02f,
-                .scale_out = scale_out
+                .scale_in = 1.0f,
+                .scale_w = q_out_comb[0],  // exact s_ssm*s_w/s_out
+                .scale_out = 1.0f
             };
             pi_cl_team_fork(NUM_CORES, linear_int8_worker, &out_args);
         }
@@ -4722,9 +4920,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                     .output_stride = total_in_proj_out,
                     .batch_tokens = B * L,
                     .tile_out_features = l1_tile_out_rev,
-                    .scale_in = scale_in,
-                    .scale_w = scale_in * 0.05f,
-                    .scale_out = scale_in
+                    .scale_in = 1.0f,
+                    .scale_w = q_in_comb[1],  // exact s_in*s_w/s_xz
+                    .scale_out = 1.0f
                 };
                 linear_pipelined_execute(&pipe_cfg_rev);
             } else {
@@ -4739,9 +4937,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                     .output_stride = total_in_proj_out,
                     .seq_len = 0,
                     .output_layout = 0,
-                    .scale_in = scale_in,
-                    .scale_w = scale_in * 0.05f,
-                    .scale_out = scale_in
+                    .scale_in = 1.0f,
+                    .scale_w = q_in_comb[1],  // exact s_in*s_w/s_xz
+                    .scale_out = 1.0f
                 };
                 pi_cl_team_fork(NUM_CORES, linear_int8_worker, &proj_args);
             }
@@ -4783,9 +4981,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                     .output_stride = total_in_proj_out,
                     .batch_tokens = B * L,
                     .tile_out_features = l1_tile_out_rev,
-                    .scale_in = scale_in,
-                    .scale_w = scale_in * 0.05f,
-                    .scale_out = scale_in
+                    .scale_in = 1.0f,
+                    .scale_w = q_in_comb[1],  // exact s_in*s_w/s_xz
+                    .scale_out = 1.0f
                 };
                 linear_pipelined_execute(&pipe_cfg_rev);
             } else {
@@ -4800,9 +4998,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                     .output_stride = total_in_proj_out,
                     .seq_len = 0,
                     .output_layout = 0,
-                    .scale_in = scale_in,
-                    .scale_w = scale_in * 0.05f,
-                    .scale_out = scale_in
+                    .scale_in = 1.0f,
+                    .scale_w = q_in_comb[1],  // exact s_in*s_w/s_xz
+                    .scale_out = 1.0f
                 };
                 pi_cl_team_fork(NUM_CORES, linear_int8_worker, &proj_args);
             }
@@ -4835,9 +5033,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                 .output_stride = total_in_proj_out,
                 .batch_tokens = B * L,
                 .tile_out_features = l1_tile_out_rev,
-                .scale_in = scale_in,
-                .scale_w = scale_in * 0.05f,
-                .scale_out = scale_in
+                .scale_in = 1.0f,
+                .scale_w = q_in_comb[1],  // exact s_in*s_w/s_xz
+                .scale_out = 1.0f
             };
             linear_pipelined_execute(&pipe_cfg_rev);
         } else {
@@ -4852,9 +5050,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                 .output_stride = total_in_proj_out,
                 .seq_len = 0,
                 .output_layout = 0,
-                .scale_in = scale_in,
-                .scale_w = scale_in * 0.05f,
-                .scale_out = scale_in
+                .scale_in = 1.0f,
+                .scale_w = q_in_comb[1],  // exact s_in*s_w/s_xz
+                .scale_out = 1.0f
             };
             pi_cl_team_fork(NUM_CORES, linear_int8_worker, &proj_args);
         }
@@ -4873,44 +5071,32 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
         pi_cl_team_fork(NUM_CORES, transpose_x_worker, &trans_args);
     }
 
-    // Conv1D + SiLU
+    // Conv1D + SiLU    // Step 3: Conv1D (exact fixed-point requant) + SiLU LUT + transpose -> ssm_in [B, L, d_inner]
     {
-        conv1d_silu_transpose_args_t cst_args = {
+        mamba_conv1d_silu_exact_args_t cst_args = {
             .input = x_transposed,
             .weights = a->mamba_cur_conv1d_weight,
             .bias = a->mamba_cur_conv1d_bias,
             .silu_lut = a->mamba_cur_silu_lut,
             .output = ssm_in,
-            .batch = B,
-            .channels = d_inner,
-            .length = L,
-            .kernel_size = kernel_size,
-            .causal = 1,
-            .scale_input = scale_in,
-            .scale_weight = scale_in * 0.1f,
-            .scale_output = scale_in
+            .batch = B, .channels = d_inner, .length = L, .kernel_size = kernel_size,
+            .requant_mul = q_conv_mul[1]
         };
-        pi_cl_team_fork(NUM_CORES, conv1d_silu_transpose_worker, &cst_args);
+        pi_cl_team_fork(NUM_CORES, mamba_conv1d_silu_exact_worker, &cst_args);
     }
 
     // SSM with gating
     {
-        // OPTIMIZATION: Reuse xz_proj's x-part for small SSM buffers
-        // After transpose, x-part is free (x values copied to x_transposed, z remains for gating)
-        int16_t *h_state_q15 = (int16_t *)xz_proj;  // Reuses x-part
-        int32_t *proj_all = (int32_t *)(h_state_q15 + B * d_inner * d_state);
+        // Exact I-Mamba SSM + gate. Scratch lives AFTER the int8 per-direction buffers
+        // (flip region, dead at this point) -- never inside xz_proj, whose z half is read
+        // by the gate (aliasing it was a data race / corruption in the previous kernel).
+        int32_t *proj_all = (int32_t *)(scratch + int8_per_dir);
         int16_t *B_all = (int16_t *)(proj_all + L * proj_size);
         int16_t *C_all = B_all + L * d_state;
-        // dt_all uses dedicated scratch space
-        void *ssm_scratch = (void *)(ssm_in + ssm_inout_size);
-        int16_t *dt_all = (int16_t *)ssm_scratch;
-
-        memset(h_state_q15, 0, B * d_inner * d_state * sizeof(int16_t));
-
-        ssm_gated_args_t ssm_args = {
+        mamba_imamba_ssm_args_t ssm_args = {
             .x_int8 = ssm_in,
+            .xz_proj = xz_proj,
             .output_int8 = ssm_out,
-            .xz_proj = xz_proj,  // Full in_proj output [B*L, 2*d_inner] for z access
             .x_proj_weight = a->mamba_cur_x_proj_weight,
             .dt_proj_weight = a->mamba_cur_dt_proj_weight,
             .dt_proj_bias_q16_16 = a->mamba_cur_dt_proj_bias_q16_16,
@@ -4919,16 +5105,11 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
             .softplus_lut = a->mamba_cur_softplus_lut,
             .exp_lut = a->mamba_cur_exp_lut,
             .silu_gate_lut_q13 = a->mamba_cur_silu_gate_lut_q13,
-            .h_state_q15 = h_state_q15,
-            .proj_all = proj_all,
-            .dt_all = dt_all,
-            .B_all = B_all,
-            .C_all = C_all,
+            .proj_all = proj_all, .B_all = B_all, .C_all = C_all,
             .batch = B, .seq_len = L, .d_inner = d_inner, .d_state = d_state, .dt_rank = dt_rank,
-            .dt_scale_q = 1, .bc_scale_factor = 1, .output_scale_q = 1, .dt_scale_shift = 0,
-            .core0_instr_out = NULL  // IPC measurement disabled
+            .dt_scale_q = q_dt_q[1], .bc_scale_factor = q_bc[1], .output_scale_q = q_out_q[1]
         };
-        pi_cl_team_fork(NUM_CORES, ssm_gated_worker, &ssm_args);
+        pi_cl_team_fork(NUM_CORES, mamba_imamba_ssm_gated_worker, &ssm_args);
     }
 
     // Output projection -> rev_out_raw (strided to avoid overwriting still-needed data)
@@ -4965,9 +5146,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                     .output_stride = d_model,
                     .batch_tokens = B * L,
                     .tile_out_features = l1_tile_out_proj_rev,
-                    .scale_in = scale_in,
-                    .scale_w = scale_in * 0.02f,
-                    .scale_out = scale_out
+                    .scale_in = 1.0f,
+                    .scale_w = q_out_comb[1],  // exact s_ssm*s_w/s_out
+                    .scale_out = 1.0f
                 };
                 linear_pipelined_execute(&out_pipe_cfg_rev);
             } else {
@@ -4982,9 +5163,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                     .output_stride = d_model,
                     .seq_len = 0,
                     .output_layout = 0,
-                    .scale_in = scale_in,
-                    .scale_w = scale_in * 0.02f,
-                    .scale_out = scale_out
+                    .scale_in = 1.0f,
+                    .scale_w = q_out_comb[1],  // exact s_ssm*s_w/s_out
+                    .scale_out = 1.0f
                 };
                 pi_cl_team_fork(NUM_CORES, linear_int8_worker, &out_args);
             }
@@ -5018,9 +5199,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                 .output_stride = d_model,
                 .batch_tokens = B * L,
                 .tile_out_features = l1_tile_out_proj_rev,
-                .scale_in = scale_in,
-                .scale_w = scale_in * 0.02f,
-                .scale_out = scale_out
+                .scale_in = 1.0f,
+                .scale_w = q_out_comb[1],  // exact s_ssm*s_w/s_out
+                .scale_out = 1.0f
             };
             linear_pipelined_execute(&out_pipe_cfg_rev);
         } else {
@@ -5035,9 +5216,9 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
                 .output_stride = d_model,
                 .seq_len = 0,
                 .output_layout = 0,
-                .scale_in = scale_in,
-                .scale_w = scale_in * 0.02f,
-                .scale_out = scale_out
+                .scale_in = 1.0f,
+                .scale_w = q_out_comb[1],  // exact s_ssm*s_w/s_out
+                .scale_out = 1.0f
             };
             pi_cl_team_fork(NUM_CORES, linear_int8_worker, &out_args);
         }
@@ -5054,15 +5235,21 @@ void _execute_mamba_wrapper_impl(int layer_idx, const LayerSpec *layer,
     // flip_add_worker adds rev_output[L-1-t] + input[t] to output[t] in place
     // FEMBA architecture: output = input + fwd_mamba(input) + rev_mamba(flip(input))
     {
-        flip_add_args_t combine_args = {
-            .output = fwd_out,  // In-place add: fwd_out += flip(rev_out) + residual
+        // Same rule as tools/int8_inference.py::_run_mamba_wrapper: integer saturating add
+        // when fwd/rev/output scales match (residual only if the input scale matches too),
+        // else dequantise-add-requantise.
+        const float sf = q_dir_out[0], sr = q_dir_out[1];
+        const int same = fabsf(sf - sr) < 1e-6f && fabsf(sf - scale_out) < 1e-6f;
+        const int use_res = add_input_residual && (!same || fabsf(scale_in - scale_out) < 1e-6f);
+        mamba_bidir_combine_args_t combine_args = {
+            .output = fwd_out,  // In-place: fwd_out (+)= flip(rev_out) (+ residual)
             .rev_out = rev_out_raw,
-            .residual = ctx->input_buffer_l2,  // Add input as residual (FEMBA)
-            .batch = B,
-            .seq_len = L,
-            .d_model = d_model
+            .residual = use_res ? ctx->input_buffer_l2 : NULL,  // implicit residual (legacy FEMBA); NULL with an explicit Add
+            .batch = B, .seq_len = L, .d_model = d_model,
+            .float_path = !same,
+            .s_fwd = sf, .s_rev = sr, .s_res = scale_in, .s_out = scale_out
         };
-        pi_cl_team_fork(NUM_CORES, flip_add_worker, &combine_args);
+        pi_cl_team_fork(NUM_CORES, mamba_bidir_combine_worker, &combine_args);
     }
     // fwd_out is the same as ctx->output_buffer_l2, so result is already in place
 
@@ -6644,6 +6831,17 @@ static void network_cl_entry(void *arg)
                     ctx.layernorm_weight = (float *)a->block_weight_slab;
                     ctx.layernorm_bias = (float *)a->block_bias_slab;
                 }
+  % elif spec.get('weight_param') and spec.get('uses_mamba_scratch', False):
+                // LayerNorm weights have MAMBA_SCRATCH residency (allocated NULL above):
+                // stream them from L3 into the shared Mamba scratch now; every Mamba
+                // direction has finished with the scratch before a non-block LayerNorm runs.
+                {
+                    const int ln_bytes = ${spec['normalized_dim']} * sizeof(float);
+                    cl_ram_read(a->mamba_shared_scratch, a->${spec['weight_param']}_l3, ln_bytes);
+                    cl_ram_read(a->mamba_shared_scratch + ln_bytes, a->${spec['bias_param']}_l3, ln_bytes);
+                    ctx.layernorm_weight = (float *)a->mamba_shared_scratch;
+                    ctx.layernorm_bias = (float *)(a->mamba_shared_scratch + ln_bytes);
+                }
   % elif spec.get('weight_param'):
                 ctx.layernorm_weight = a->${spec['weight_param']};
                 ctx.layernorm_bias = a->${spec['bias_param']};
@@ -6925,6 +7123,22 @@ for spec in reversed(layer_specs):
     }
 % endif
 #endif
+#ifdef ARES_TARGET_POSIX
+    // Exact output for cross-platform (x86 vs Cortex-A53) bit-identity checks
+    for (int i = 0; i < NUM_CLASSES; i++) {
+% if int8_classifier:
+        printf("ARES_OUT %d %d\n", i, (int)a->${final_buffer or 'output_int8'}[i]);
+% else:
+        printf("ARES_OUT %d %a\n", i, (double)a->${final_buffer or 'output_fp32'}[i]);
+        {   /* raw IEEE-754 bits as well: newlib (bare-metal R5F) printf has no %a */
+            float ares_f = a->${final_buffer or 'output_fp32'}[i];
+            uint32_t ares_u;
+            memcpy(&ares_u, &ares_f, sizeof ares_u);
+            printf("ARES_OUTX %d %08lx\n", i, (unsigned long)ares_u);
+        }
+% endif
+    }
+#endif
 
 #if !defined(DISABLE_GOLDEN_VALIDATION) && !defined(MINIMAL_OUTPUT)
     // Prefetch golden AFTER execution to avoid corruption during Mamba scratch reuse
@@ -6982,7 +7196,7 @@ for spec in reversed(layer_specs):
     // Transformer/SSM/GELU: use absolute error threshold since logits can be near zero
     // and fast_exp/fast_softplus/erf approximations introduce small errors
     float abs_tolerance = 3.0f;
-% elif any(spec.get('op') == 'ssm' for spec in layer_specs):
+% if any(spec.get('op') == 'ssm' for spec in layer_specs):
     printf("CL: Using SSM tolerance (abs error < 3.0 per logit, accounts for fast_exp approx)\n");
 % elif any(spec.get('op') == 'gelu' for spec in layer_specs):
     printf("CL: Using GELU model tolerance (abs error < 3.0 per logit)\n");

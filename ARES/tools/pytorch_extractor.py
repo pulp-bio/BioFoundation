@@ -1614,6 +1614,12 @@ class BrevitasExtractor:
         info['d_inner'] = module.d_inner
         info['d_state'] = module.d_state
         info['bidirectional_strategy'] = module.bidirectional_strategy
+        # ARES's MambaWrapper kernel (C and INT8 engine) adds the block input as an
+        # implicit residual: out = x + fwd(x) + flip(rev(flip(x))). The Brevitas
+        # QuantMambaWrapper does not. Models that express the residual explicitly
+        # (QuantAdd) set `ares_internal_residual = False` on the wrapper so it is
+        # not counted twice. Default True keeps the legacy behaviour.
+        info['use_residual'] = bool(getattr(module, 'ares_internal_residual', True))
 
         # Extract forward MambaBlock parameters
         fwd_info = self._extract_mamba_block_info(module.mamba_fwd)

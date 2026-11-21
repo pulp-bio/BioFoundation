@@ -314,7 +314,8 @@ void network_layernorm_int8_integer(
         for (uint32_t i = 0; i < normalized_dim; i++) {
             int64_t x_centered = (int64_t)input_vec[i] - mean;
             float x_normalized = (float)x_centered / (float)std;
-            x_normalized *= scale_in;
+            /* (x - mean) / std is scale-free: scale_in cancels, as in the RMSNorm
+             * kernels above. Multiplying by scale_in here shrank the output by 1/scale_in. */
 
             float output_fp32 = weight[i] * x_normalized + bias[i];
             int32_t q = qround(output_fp32 / scale_out);
@@ -375,7 +376,8 @@ static void layernorm_int8_integer_worker(void *arg) {
         for (uint32_t i = 0; i < a->normalized_dim; i++) {
             int64_t x_centered = (int64_t)input_vec[i] - mean;
             float x_normalized = (float)x_centered / (float)std;
-            x_normalized *= a->scale_in;
+            /* (x - mean) / std is scale-free: scale_in cancels, as in the RMSNorm
+             * kernels above. Multiplying by scale_in here shrank the output by 1/scale_in. */
 
             float output_fp32 = a->weight[i] * x_normalized + a->bias[i];
             int32_t q = qround(output_fp32 / a->scale_out);

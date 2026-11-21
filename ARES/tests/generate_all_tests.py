@@ -192,6 +192,7 @@ from test_networks.test_22_femba_full import FEMBAFullTest
 from test_networks.test_23_femba_full_input import FEMBATinyFullInput
 from test_networks.test_24_femba_full_expand2 import FEMBATiny as FEMBATinyFullExpand
 from test_networks.test_25_femba_tiny_int8 import FEMBATinyInt8
+from test_networks.test_45_femba_tiny_faithful import FEMBATinyFaithful
 from test_networks.test_26_tinymyo_8ch_400tok import TinyMyo8Ch400Quant
 from test_networks.test_27_linear3d_bench import Linear3DBenchQuant
 from test_networks.test_28_conv2d_remainder import Conv2DRemainderNet
@@ -359,6 +360,12 @@ class TestGenerator:
         'test_25_femba_tiny_int8': {
             'class': FEMBATinyInt8,
             'description': 'FEMBA Tiny INT8 (true arch: expand=4, d_state=16, ~7.6M params)',
+            'epochs': 0,
+            'custom_input_shape': (1, 1, 22, 1280),
+        },
+        'test_45_femba_tiny_faithful': {
+            'class': FEMBATinyFaithful,
+            'description': 'FEMBA Tiny INT8 faithful dataflow (execution-order registration, QuantAdd residual, post-norm per block)',
             'epochs': 0,
             'custom_input_shape': (1, 1, 22, 1280),
         },
@@ -777,7 +784,8 @@ class TestGenerator:
         is_transformer = any(keyword in test_name.lower() for keyword in ['mhsa', 'transformer', 'tinymyo', 'layernorm', 'luna'])
         use_i_softmax = is_transformer
         use_i_gelu = is_transformer
-        use_i_layernorm = is_transformer
+        # FEMBA's C code always runs the integer LayerNorm (i-LayerNorm), so its golden must too.
+        use_i_layernorm = is_transformer or 'femba' in test_name.lower()
         if use_i_softmax:
             print("  i-Softmax enabled for bit-exact transformer inference")
         if use_i_gelu:

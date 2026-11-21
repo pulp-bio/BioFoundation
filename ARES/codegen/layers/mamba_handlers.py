@@ -339,15 +339,13 @@ def handle_mambawrapper(
     B_all_size = seq_len * d_state * 2
     C_all_size = seq_len * d_state * 2
 
-    # OPTIMIZATION: Reuse xz_proj's x-part for small SSM buffers
-    small_ssm_scratch = h_state_size + proj_all_size + B_all_size + C_all_size
-
-    if small_ssm_scratch <= x_part_size:
-        ssm_scratch_separate = dt_all_size
-    else:
-        ssm_scratch_separate = dt_all_size + small_ssm_scratch
-
-    scratch_per_dir = int8_per_dir + ssm_scratch_separate
+    # SSM scratch (exact I-Mamba worker, see network.c.mako mamba_imamba_ssm_gated_worker):
+    # proj_all [L, dt_rank+2*d_state] int32 + B_all/C_all [L, d_state] int16, placed in the
+    # region after the int8 buffers (shared with the flip buffer, which is dead by then).
+    # It must NOT alias xz_proj: xz_proj is [L, 2*d_inner] row-major, so its "x-part" is
+    # not a contiguous prefix and the z half (read by the gating stage) would be overwritten.
+    # dt and the hidden state live in per-core registers/stack (computed per channel).
+    ssm_scratch_separate = proj_all_size + B_all_size + C_all_size
 
     # OPTIMIZATION: flip_buffer overlaps with SSM scratch
     flip_buffer_size = batch * seq_len * d_model
@@ -371,6 +369,8 @@ def handle_mambawrapper(
         'dt_rank': dt_rank,
         'kernel_size': kernel_size,
         'bidirectional_strategy': bidirectional_strategy,
+        # Implicit input residual inside the wrapper (see extractor); default True = legacy.
+        'use_residual': bool(layer_data.get('use_residual', True)),
         'scale_in': scale_input,
         'scale_out': scale_output,
         'scale_equalizer': scale_equalizer,
@@ -404,6 +404,30 @@ def handle_mambawrapper(
         'rev_bc_scale_factor': generator.ssm_bc_scale_factor.get(f"{layer_name}_rev", 0),
         'rev_output_scale_q': generator.ssm_output_scale_q.get(f"{layer_name}_rev", 0),
     })
+
+    # Exact per-direction quantisation parameters, computed with the same formulas as
+    # tools/int8_inference.py::_run_mamba_block / atomic_ops (so C matches the golden).
+    import numpy as _np
+    _Q15 = 32768.0
+    for _d in ('fwd', 'rev'):
+        _xz = float(layer_data.get(f'{_d}_in_proj_scale_output', scale_input))
+        _w_in = float(layer_data.get(f'{_d}_in_proj_scale_weight', 1.0))
+        _conv_w = float(layer_data.get(f'{_d}_conv1d_scale_weight', 1.0))
+        _conv_out = float(layer_data.get(f'{_d}_conv1d_scale_output', _xz))
+        _silu_out = float(layer_data.get(f'{_d}_silu_scale_output', _conv_out))
+        _xp = float(layer_data.get(f'{_d}_ssm_x_proj_scale_weight', 1.0))
+        _dtp = float(layer_data.get(f'{_d}_ssm_dt_proj_scale_weight', 1.0))
+        _ssm_out = float(layer_data.get(f'{_d}_ssm_scale_output', _silu_out))
+        _w_out = float(layer_data.get(f'{_d}_out_proj_scale_weight', 1.0))
+        _dir_out = float(layer_data.get(f'{_d}_scale_output', scale_output))
+        spec[f'{_d}_q_in_comb'] = float(_np.float32(scale_input * _w_in / _xz))
+        spec[f'{_d}_q_conv_mul'] = int(_np.round((_xz * _conv_w) / _conv_out * (1 << 24)))
+        spec[f'{_d}_q_dt_scale_q'] = int(round((_silu_out * _xp) * _dtp * 65536.0 * (1 << 24)))
+        spec[f'{_d}_q_bc_scale_factor'] = int(round(_silu_out * _xp * _Q15 * (1 << 16)))
+        spec[f'{_d}_q_output_scale_q'] = int(round(_silu_out / (_Q15 * _ssm_out) * (1 << 24)))
+        spec[f'{_d}_q_out_comb'] = float(_np.float32(_ssm_out * _w_out / _dir_out))
+        spec[f'{_d}_q_dir_out'] = _dir_out
+    spec['q_exact'] = True
 
     # Add bit width info for 2-bit weight support
     fwd_prefix = f"{layer_name}_fwd"

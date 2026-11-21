@@ -2517,9 +2517,13 @@ class CCodeGenerator:
                         self.weight_entries[f"{entry_prefix}::out_proj_weight"] = entry
                         self.weight_entries[f"{entry_prefix}::out_proj_weight_bit_width"] = 8
 
-                    # LUTs for this direction
-                    dir_scale_in = layer_data.get(f'{src_prefix}scale_input', layer_data.get('scale_input', 0.1))
-                    dir_scale_out = layer_data.get(f'{src_prefix}scale_output', layer_data.get('scale_output', 0.1))
+                    # LUTs for this direction. The SiLU follows conv1d (QuantSiLU has no input
+                    # quantiser), so its LUT maps conv1d_scale_output -> silu_scale_output, as in
+                    # tools/int8_inference.py::_run_mamba_block.
+                    dir_scale_in = layer_data.get(f'{src_prefix}conv1d_scale_output',
+                                                  layer_data.get(f'{src_prefix}scale_input', layer_data.get('scale_input', 0.1)))
+                    dir_scale_out = layer_data.get(f'{src_prefix}silu_scale_output',
+                                                   layer_data.get(f'{src_prefix}scale_output', layer_data.get('scale_output', 0.1)))
 
                     # SiLU LUT (INT8)
                     lut = self._generate_silu_lut(dir_scale_in, dir_scale_out)

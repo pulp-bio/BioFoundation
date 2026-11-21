@@ -1,0 +1,42 @@
+# ARES POSIX/Linux target (Kria KV260 Cortex-A53, or any Linux host for testing).
+# Run from an ARES-generated project directory (the one containing src/, inc/, bin/):
+#   make -f <ARES>/codegen/runtime/posix/Makefile.posix [CORE=4] [CC=gcc]
+#   ./ares_posix_app            (reads weights/golden files from bin/, see ARES_FS_DIR)
+# KV260 cross build (static, no board toolchain needed), using Zig as the C compiler:
+#   make -f .../Makefile.posix CC="zig cc -target aarch64-linux-musl" LDFLAGS=-static APP=ares_kv260 BUILD=build_kv260
+CORE ?= 4
+CC ?= gcc
+OPT ?= -O3
+EXTRA_CFLAGS ?=
+POSIX_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+RUNTIME_DIR := $(abspath $(POSIX_DIR)/..)
+APP_SRCS := $(wildcard src/*.c) $(wildcard src/net/*.c) $(wildcard src/ops/*.c) \
+            $(wildcard $(RUNTIME_DIR)/src/*.c) $(wildcard $(RUNTIME_DIR)/src/core/*.c) \
+            $(wildcard $(RUNTIME_DIR)/src/ops/*.c)
+APP ?= ares_posix_app
+BUILD ?= build_posix
+LDFLAGS ?=
+OBJS := $(patsubst %.c,$(BUILD)/app/%.o,$(notdir $(APP_SRCS)))
+CFLAGS := -std=gnu11 $(OPT) -ffp-contract=off -fno-pie -DNUM_CORES=$(CORE) -DALWAYS_BLOCK_DMA_TRANSFERS \
+          -DPI_CL_SLAVE_STACK_SIZE=0x400 -include $(POSIX_DIR)/inc/pmsis.h -I$(POSIX_DIR)/inc -I$(RUNTIME_DIR)/inc -Iinc \
+          -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable \
+          -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-incompatible-pointer-types -Wno-error=implicit-function-declaration $(EXTRA_CFLAGS)
+vpath %.c $(sort $(dir $(APP_SRCS)))
+
+$(APP): $(OBJS) $(BUILD)/pmsis_posix.o
+	$(CC) -no-pie $(LDFLAGS) -o $@ $^ -lpthread -lm
+
+$(BUILD)/app/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -Dmain=ares_app_main -c $< -o $@
+
+$(BUILD)/pmsis_posix.o: $(POSIX_DIR)/src/pmsis_posix.c $(POSIX_DIR)/inc/pmsis.h
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+run: $(APP)
+	ARES_FS_DIR=bin ./$(APP)
+
+clean:
+	rm -rf $(BUILD) $(APP)
+.PHONY: run clean

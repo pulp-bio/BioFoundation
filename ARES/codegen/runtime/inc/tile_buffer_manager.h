@@ -88,6 +88,10 @@ typedef struct {
  * @param input_size   Size of input buffer in bytes
  * @param output_size  Size of output buffer in bytes
  */
+#ifndef TILE_ALIGN_UP
+#define TILE_ALIGN_UP(x) ((((size_t)(x)) + 7u) & ~(size_t)7u)
+#endif
+
 static inline void tile_buffer_init(
     tile_buffer_mgr_t *mgr,
     int8_t *l1_base,
@@ -119,11 +123,13 @@ static inline void tile_buffer_linear_init(
     size_t output_size,
     size_t weight_size)
 {
+    /* Sub-buffers start on 8-byte boundaries: the output tile may be FP32 and an odd
+     * input size (e.g. 385 features) would otherwise misalign it. */
     mgr->input = l1_base;
-    mgr->output_a = l1_base + input_size;
-    mgr->weights_a = mgr->output_a + output_size;
-    mgr->output_b = mgr->weights_a + weight_size;
-    mgr->weights_b = mgr->output_b + output_size;
+    mgr->output_a = l1_base + TILE_ALIGN_UP(input_size);
+    mgr->weights_a = mgr->output_a + TILE_ALIGN_UP(output_size);
+    mgr->output_b = mgr->weights_a + TILE_ALIGN_UP(weight_size);
+    mgr->weights_b = mgr->output_b + TILE_ALIGN_UP(output_size);
     mgr->current_idx = 0;
 }
 

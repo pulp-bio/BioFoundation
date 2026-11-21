@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: Apache-2.0
+# ARES bare-metal target for the Zynq UltraScale+ RPU (Cortex-R5F, R5_0), single core.
+# Run from an ARES-generated project directory (src/, inc/, bin/):
+#   make -f <ARES>/codegen/runtime/r5/Makefile.r5            -> ares_r5.elf, ares_r5.bin, ares_fs.bin
+# Load from U-Boot: image at 0x10000000, FS blob at 0x30000000, stub "ldr pc,=0x10000000" in ATCM, then
+#   cpu 4 release 0 split     (see r5/README.md)
+CC := arm-none-eabi-gcc
+OBJCOPY := arm-none-eabi-objcopy
+OPT ?= -O3
+R5_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+RUNTIME_DIR := $(abspath $(R5_DIR)/..)
+POSIX_INC := $(RUNTIME_DIR)/posix/inc
+APP_SRCS := $(wildcard src/*.c) $(wildcard src/net/*.c) $(wildcard src/ops/*.c) \
+            $(wildcard $(RUNTIME_DIR)/src/*.c) $(wildcard $(RUNTIME_DIR)/src/core/*.c) \
+            $(wildcard $(RUNTIME_DIR)/src/ops/*.c)
+BUILD ?= build_r5
+APP ?= ares_r5
+ARCH := -mcpu=cortex-r5 -mfpu=vfpv3-d16 -mfloat-abi=hard -marm
+OBJS := $(patsubst %.c,$(BUILD)/app/%.o,$(notdir $(APP_SRCS)))
+CFLAGS := $(ARCH) -std=gnu11 $(OPT) -ffp-contract=off -ffunction-sections -fdata-sections -DNUM_CORES=1 \
+          -DALWAYS_BLOCK_DMA_TRANSFERS -DPI_CL_SLAVE_STACK_SIZE=0x400 -DARES_TARGET_R5=1 \
+          -include $(POSIX_INC)/pmsis.h -I$(POSIX_INC) -I$(RUNTIME_DIR)/inc -Iinc \
+          -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable \
+          -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-incompatible-pointer-types -Wno-error=implicit-function-declaration $(EXTRA_CFLAGS)
+vpath %.c $(sort $(dir $(APP_SRCS)))
+
+all: $(APP).bin ares_fs.bin
+
+$(APP).elf: $(OBJS) $(BUILD)/pmsis_r5.o $(BUILD)/crt0.o $(R5_DIR)/r5.ld
+	$(CC) $(ARCH) -nostartfiles -T $(R5_DIR)/r5.ld -Wl,--gc-sections -o $@ $(BUILD)/crt0.o $(OBJS) $(BUILD)/pmsis_r5.o -lm -lc -lgcc
+
+$(APP).bin: $(APP).elf
+	$(OBJCOPY) -O binary $< $@
+
+ares_fs.bin: $(wildcard bin/*)
+	python3 $(R5_DIR)/pack_fs.py bin $@
+
+$(BUILD)/app/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -Dmain=ares_app_main -c $< -o $@
+
+$(BUILD)/pmsis_r5.o: $(R5_DIR)/src/pmsis_r5.c $(POSIX_INC)/pmsis.h
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/crt0.o: $(R5_DIR)/src/crt0.S
+	@mkdir -p $(dir $@)
+	$(CC) $(ARCH) -c $< -o $@
+
+clean:
+	rm -rf $(BUILD) $(APP).elf $(APP).bin ares_fs.bin
+.PHONY: all clean

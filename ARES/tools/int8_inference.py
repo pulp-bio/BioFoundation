@@ -863,7 +863,13 @@ class INT8InferenceEngine:
                     # Integer division with rounding, matching C truncation toward zero
                     # Python // is floor division (toward -inf), C / truncates toward 0
                     # Use np.trunc to match C behavior
-                    numerator = sum_values + count // 2
+                    # The code generator maps AdaptiveAvgPool1d(output_size=1) to
+                    # OP_GLOBAL_AVGPOOL (network_global_avgpool_int8), which rounds half
+                    # away from zero symmetrically: (sum +/- count/2) / count, truncating.
+                    # (The former (sum + count/2) truncated toward zero, which is biased for
+                    # negative sums and disagreed with the C kernel on ~50% of channels.)
+                    half = count // 2
+                    numerator = np.where(sum_values >= 0, sum_values + half, sum_values - half)
                     avg_int32 = np.trunc(numerator.astype(np.float64) / count).astype(np.int32)
                     # Clip to INT8 range
                     avg_int32 = np.clip(avg_int32, -128, 127)
